@@ -3,6 +3,15 @@
 
 _Metaprogrammed code in C++ can be as simple, clear, reusable, modular and configurable as code that is written in a functional language like Lisp or Haskell._ 
 
+
+======================================================================
+
+## THIS CONTENT IS A BIT DATED. PLEASE "GIT PULL" ON FEBRUARY 5th 2025. THEN AN IMPROVED VERSION WILL BE PUBLISHED
+
+
+======================================================================
+
+
 Trivium is a template metaprogrammaing framework that achieves these objectives through a strict separation of metaprograms and C++ types. It has three components:
 
 1. *Trivium Lisp*, a domain-specific[^1] Lisp dialect that was designed for metaprogramming.
