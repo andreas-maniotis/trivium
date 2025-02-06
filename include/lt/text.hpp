@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "type_hull.hpp"
 
 namespace lt
 {
@@ -46,13 +45,53 @@ namespace lt
 
 
 
+            friend struct t<>;
+
+
+
             template<  unsigned...  >
             struct sequence {};
 
 
-            friend struct t<>;
+
+            template<  template<  char...  >  class F,  auto  const Literal,  unsigned... k  >
+            static constexpr  auto split_( sequence<k...> )
+            ->  F<  Literal.content[k]...  >
+            {
+                return {};
+            }
+
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable: 4067 )
+#endif
+
+//  disable "warning C4067: unexpected tokens following preprocessor directive - expected a newline"
+//  in the #if macro below:
+
+#if defined(_MSC_VER) || __has_builtin(__make_integer_seq)
+
+#ifdef _MSC_Ver
+#pragma wanring( pop )
+#endif
+
+            template< typename T,  T...  t  >
+            struct sequence_
+            {
+                using seq = sequence<t...>;
+            };
 
 
+            template<  unsigned N  >
+            using  make_chain  =  typename __make_integer_seq<  sequence_,  unsigned,  N  >::seq;
+
+#elif __has_builtin(__integer_pack)
+
+            template<  unsigned N  >
+            using make_chain  =  sequence<  __integer_pack(N)...  >;
+
+
+#else
 
             template<  typename  >
             struct make_chain_;
@@ -71,14 +110,40 @@ namespace lt
             };
 
 
+            template<  unsigned N  >
+            using make_chain =  typename make_chain_< sequence<N-1>  >::result;  // sequence<0, ... , N-1 >
 
-            template<  template<  char...  >  class F,  auto  const Literal,  unsigned... k  >
-            static constexpr  auto split_( sequence<k...> )
-            ->  F<  Literal.content[k]...  >
+#endif
+
+
+            template< auto Literal,  unsigned,  typename Seq  >
+            struct subtext_;
+
+
+
+            template<  auto Literal,  unsigned delta,  unsigned... idx  >
+            struct subtext_<  Literal,  delta,  sequence< idx... >  >
             {
-                return {};
-            }
+                using result  =  t<  Literal.content[idx+delta]... >;
+            };
+
+
+
+
+            template<  auto Literal,  unsigned begin,  unsigned end  >
+            using subtext  =
+            typename subtext_<  Literal,  begin,  make_chain< end - begin >  >::result;
+
         };
+
+
+
+        template<  auto      Literal
+                ,  unsigned  begin
+                ,  unsigned  end
+                >
+        requires( begin <= end )
+        using subtext = literal<0>::template subtext< Literal,  begin,  end  >;
 
 
 
@@ -97,18 +162,32 @@ namespace lt
 
 
             constexpr literal(  char const (&Text)[N]  )
-            :  literal(  Text,  typename literal<0u>::
-                                template make_chain_<  typename literal<0u>::
-                                                        sequence<N-1>
-                                                    >::result{} )
+            :  literal(  Text,  typename literal<0u>::template make_chain<N>{})
+            { }
+
+
+
+            constexpr literal(  literal const& other )
+            :   literal( other.content )
+            { }
+
+
+            template<  char... src  >
+            requires(  sizeof...(src) == N-1 )
+            constexpr literal(  t< src... >  )
+            :   content{ src... }
             { }
        };
 
 
 
         template<  unsigned N  >
-        literal(  char  const (&)[N]  ) ->  literal< N >;
+        literal(  char  const (&)[N]  )  ->  literal< N >;
 
+
+
+        template< char... src  >
+        literal(  t< src... >  )   ->  literal<  sizeof...(src) + 1  >;
 
 
 
@@ -126,11 +205,7 @@ namespace lt
             {
                 return
                 literal<0>::
-                split_< F,  Literal  >(  typename literal<0u>::
-                                         template make_chain_<  typename literal<0u>::
-                                                                 sequence< sizeof(Literal.content)-2  >
-                                                             >::
-                                         result{}  ) ;
+                split_< F,  Literal  >(  typename literal<0u>::template make_chain< sizeof(Literal.content)-1>{}) ;
             }
         }
 
@@ -145,7 +220,7 @@ namespace lt
 
 
     template<  t<>::literal Text  >
-    constexpr auto operator ""_t()  noexcept
+    constexpr auto operator ""_text()  noexcept
     {
         return t<>::as_type<  t,  Text  >();
     }

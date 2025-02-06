@@ -10,10 +10,8 @@
 
 
 
-#include "./fundamental_types/text.hpp"
-#include "./fundamental_types/s_expr.hpp"
-#include "./fundamental_types/lut.hpp"
-#include "./fundamental_types/value.hpp"
+#include "text.hpp"
+#include "symbolic_expressions.hpp"
 
 
 
@@ -60,7 +58,7 @@ namespace lt
         template<  template<  typename... > class  F
                 ,  typename...                     Xs
                 >
-        struct construct<  value_type<"class_template"_t>
+        struct construct<  value_type<"class_template"_text>
                         ,  class_template< F >
                         ,   Xs...
                         >
@@ -73,7 +71,7 @@ namespace lt
                 ,  typename...                Ys
                 >
         struct deconstruct<  F<  Ys...  >  >
-        :   type_hull<  s_expr<  value_type<"class_template"_t>
+        :   type_hull<  s<  value_type<"class_template"_text>
                               ,  class_template< F >
                               ,  typename deconstruct< Ys >::type...
                               >
@@ -85,7 +83,7 @@ namespace lt
 //  references:
 
         template<  typename  T  >
-        struct construct<  value_type<"&"_t>,   T    >
+        struct construct<  value_type<"&"_text>,   T    >
         :   type_hull< T& >
         { };
 
@@ -93,14 +91,14 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T&  >
-        :   type_hull<  s_expr<  value_type<"&"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"&"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 //  rvalue-references:
 
         template<  typename  T  >
-        struct construct<  value_type<"&&"_t>,   T    >
+        struct construct<  value_type<"&&"_text>,   T    >
         :   type_hull< T&& >
         { };
 
@@ -108,14 +106,14 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T&&  >
-        :   type_hull<  s_expr<  value_type<"&&"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"&&"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 //  const:
 
         template<  typename  T  >
-        struct construct<  value_type<"const"_t>,   T    >
+        struct construct<  value_type<"const"_text>,   T    >
         :   type_hull<  T const  >
         { };
 
@@ -123,14 +121,14 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T const  >
-        :   type_hull<  s_expr<  value_type<"const"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"const"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 //  volatile:
 
         template<  typename  T  >
-        struct construct<  value_type<"volatile"_t>,   T    >
+        struct construct<  value_type<"volatile"_text>,   T    >
         :   type_hull< T volatile >
         { };
 
@@ -138,14 +136,14 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T volatile  >
-        :   type_hull<  s_expr<  value_type<"volatile"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"volatile"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 //  const volatile:
 
         template<  typename  T  >
-        struct construct<  value_type<"const_volatile"_t>,   T    >
+        struct construct<  value_type<"const_volatile"_text>,   T    >
         :   type_hull<  T const volatile  >
         { };
 
@@ -153,14 +151,14 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T const volatile >
-        :   type_hull<  s_expr<  value_type<"const_volatile"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"const_volatile"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 //  array:
 
         template<  typename  T  >
-        struct construct<  value_type<"array"_t>,   T    >
+        struct construct<  value_type<"array"_text>,   T    >
         :   type_hull<  T []  >
         { };
 
@@ -168,12 +166,12 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T [] >
-        :   type_hull<  s_expr<  value_type<"array"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"array"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
         template<  typename  T,  int n  >
-        struct construct<  value_type<"array"_t>,   T,  integer<n>   >
+        struct construct<  value_type<"array"_text>,   T,  integer<n>   >
         :   type_hull<  T [n]  >
         { };
 
@@ -181,14 +179,14 @@ namespace lt
 
         template<  typename T,  auto n  >
         struct deconstruct<  T [n] >
-        :   type_hull<  s_expr<  value_type<"array"_t>,  typename deconstruct<T>::type,  integer<n>  >  >
+        :   type_hull<  s<  value_type<"array"_text>,  typename deconstruct<T>::type,  integer<n>  >  >
         { };
 
 
 //  pointers:
 
         template<  typename  T  >
-        struct construct<  value_type<"*"_t>,   T    >
+        struct construct<  value_type<"*"_text>,   T    >
         :   type_hull<  T*  >
         { };
 
@@ -196,13 +194,13 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T* >
-        :   type_hull<  s_expr<  value_type<"*"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"*"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 
         template<  typename  T  >
-        struct construct<  value_type<"*const"_t>,   T    >
+        struct construct<  value_type<"*const"_text>,   T    >
         :   type_hull<  T *const  >
         { };
 
@@ -210,13 +208,13 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T *const >
-        :   type_hull<  s_expr<  value_type<"*const"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"*const"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 
         template<  typename  T  >
-        struct construct<  value_type<"*volatile"_t>,   T    >
+        struct construct<  value_type<"*volatile"_text>,   T    >
         :   type_hull<  T *volatile  >
         { };
 
@@ -224,13 +222,13 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T *volatile >
-        :   type_hull<  s_expr<  value_type<"*volatile"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"*volatile"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
 
         template<  typename  T  >
-        struct construct<  value_type<"*const_volatile"_t>,   T    >
+        struct construct<  value_type<"*const_volatile"_text>,   T    >
         :   type_hull<  T *const volatile  >
         { };
 
@@ -238,7 +236,7 @@ namespace lt
 
         template<  typename T  >
         struct deconstruct<  T *const volatile >
-        :   type_hull<  s_expr<  value_type<"*const_volatile"_t>,  typename deconstruct<T>::type  >  >
+        :   type_hull<  s<  value_type<"*const_volatile"_text>,  typename deconstruct<T>::type  >  >
         { };
 
 
@@ -248,7 +246,7 @@ namespace lt
         template<  typename  X
                 ,  typename  Y
                 >
-        struct construct<  value_type<"::*"_t>,   X,  Y    >
+        struct construct<  value_type<"::*"_text>,   X,  Y    >
         :   type_hull<  Y X::*  >
         { };
 
@@ -258,7 +256,7 @@ namespace lt
                 ,  typename  Y
                 >
         struct deconstruct<  Y X::* >
-        :   type_hull<  s_expr<  value_type<"::*"_t>
+        :   type_hull<  s<  value_type<"::*"_text>
                               ,  typename deconstruct<X>::type
                               ,  typename deconstruct<Y>::type
                               >
@@ -272,8 +270,8 @@ namespace lt
         template<  typename     X
                 ,  typename...  Xs
                 >
-        struct construct<  value_type<"signature"_t>,  X,  Xs...  >
-        :   type_hull<  s_expr<  value_type<"signature"_t>,  X,  Xs...  >  >
+        struct construct<  value_type<"signature"_text>,  X,  Xs...  >
+        :   type_hull<  s<  value_type<"signature"_text>,  X,  Xs...  >  >
         { };
 
 
@@ -281,8 +279,8 @@ namespace lt
         template<  typename     X
                 ,  typename...  Xs
                 >
-        struct construct<  value_type<"function"_t>
-                        ,  s_expr<  value_type<"signature"_t>,  X,  Xs... >
+        struct construct<  value_type<"function"_text>
+                        ,  s<  value_type<"signature"_text>,  X,  Xs... >
                         >
         :   type_hull<  X (Xs...)  >
         { };
@@ -300,28 +298,28 @@ namespace lt
         template<  typename     X \
                 ,  typename...  Xs \
                 >\
-        struct construct<  value_type<"function"_t>\
-                        ,  s_expr<  value_type<"signature"_t>,  X,  Xs... >,  Qual_\
+        struct construct<  value_type<"function"_text>\
+                        ,  s<  value_type<"signature"_text>,  X,  Xs... >,  Qual_\
                         >\
         :   type_hull<  X (Xs...)  Qual  >\
         { };
 
 
 
-TRIVIUM_FCONSTRUCT(               &,  value_type<"&"_t> )
-TRIVIUM_FCONSTRUCT(              &&,  value_type<"&&"_t> )
+TRIVIUM_FCONSTRUCT(               &,  value_type<"&"_text> )
+TRIVIUM_FCONSTRUCT(              &&,  value_type<"&&"_text> )
 
-TRIVIUM_FCONSTRUCT(           const,  value_type<"const"_t> )
-TRIVIUM_FCONSTRUCT(        volatile,  value_type<"volatile"_t> )
-TRIVIUM_FCONSTRUCT(  const volatile,  value_type<"const_volatile"_t> )
+TRIVIUM_FCONSTRUCT(           const,  value_type<"const"_text> )
+TRIVIUM_FCONSTRUCT(        volatile,  value_type<"volatile"_text> )
+TRIVIUM_FCONSTRUCT(  const volatile,  value_type<"const_volatile"_text> )
 
-TRIVIUM_FCONSTRUCT(          const&,  value_type<"const&"_t> )
-TRIVIUM_FCONSTRUCT(       volatile&,  value_type<"volatile&"_t> )
-TRIVIUM_FCONSTRUCT( const volatile&,  value_type<"const_volatile&"_t> )
+TRIVIUM_FCONSTRUCT(          const&,  value_type<"const&"_text> )
+TRIVIUM_FCONSTRUCT(       volatile&,  value_type<"volatile&"_text> )
+TRIVIUM_FCONSTRUCT( const volatile&,  value_type<"const_volatile&"_text> )
 
-TRIVIUM_FCONSTRUCT(         const&&,  value_type<"const&&"_t> )
-TRIVIUM_FCONSTRUCT(      volatile&&,  value_type<"volatile&&"_t> )
-TRIVIUM_FCONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
+TRIVIUM_FCONSTRUCT(         const&&,  value_type<"const&&"_text> )
+TRIVIUM_FCONSTRUCT(      volatile&&,  value_type<"volatile&&"_text> )
+TRIVIUM_FCONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_text> )
 
 #pragma pop_macro("TRIVIUM_FCONSTRUCT")
 
@@ -332,9 +330,9 @@ TRIVIUM_FCONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
         template<  typename     X
                 ,  typename...  Xs
                 >
-        struct construct<  value_type<"function"_t>
-                        ,  s_expr<  value_type<"signature"_t>,  X,  Xs... >
-                        ,  value_type<"noexcept"_t>
+        struct construct<  value_type<"function"_text>
+                        ,  s<  value_type<"signature"_text>,  X,  Xs... >
+                        ,  value_type<"noexcept"_text>
                         >
         :   type_hull<  X (Xs...) noexcept  >
         { };
@@ -346,29 +344,29 @@ TRIVIUM_FCONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
         template<  typename     X \
                 ,  typename...  Xs \
                 >\
-        struct construct<  value_type<"function"_t>\
-                        ,  s_expr<  value_type<"signature"_t>,  X,  Xs... > \
+        struct construct<  value_type<"function"_text>\
+                        ,  s<  value_type<"signature"_text>,  X,  Xs... > \
                                  ,  Qual_\
-                                 ,  value_type<"noexcept"_t> \
+                                 ,  value_type<"noexcept"_text> \
                         >\
         :   type_hull<  X (Xs...)  Qual  noexcept >\
         { };
 
 
-TRIVIUM_F_NE_CONSTRUCT(               &,  value_type<"&"_t> )
-TRIVIUM_F_NE_CONSTRUCT(              &&,  value_type<"&&"_t> )
+TRIVIUM_F_NE_CONSTRUCT(               &,  value_type<"&"_text> )
+TRIVIUM_F_NE_CONSTRUCT(              &&,  value_type<"&&"_text> )
 
-TRIVIUM_F_NE_CONSTRUCT(           const,  value_type<"const"_t> )
-TRIVIUM_F_NE_CONSTRUCT(        volatile,  value_type<"volatile"_t> )
-TRIVIUM_F_NE_CONSTRUCT(  const volatile,  value_type<"const_volatile"_t> )
+TRIVIUM_F_NE_CONSTRUCT(           const,  value_type<"const"_text> )
+TRIVIUM_F_NE_CONSTRUCT(        volatile,  value_type<"volatile"_text> )
+TRIVIUM_F_NE_CONSTRUCT(  const volatile,  value_type<"const_volatile"_text> )
 
-TRIVIUM_F_NE_CONSTRUCT(          const&,  value_type<"const&"_t> )
-TRIVIUM_F_NE_CONSTRUCT(       volatile&,  value_type<"volatile&"_t> )
-TRIVIUM_F_NE_CONSTRUCT( const volatile&,  value_type<"const_volatile&"_t> )
+TRIVIUM_F_NE_CONSTRUCT(          const&,  value_type<"const&"_text> )
+TRIVIUM_F_NE_CONSTRUCT(       volatile&,  value_type<"volatile&"_text> )
+TRIVIUM_F_NE_CONSTRUCT( const volatile&,  value_type<"const_volatile&"_text> )
 
-TRIVIUM_F_NE_CONSTRUCT(         const&&,  value_type<"const&&"_t> )
-TRIVIUM_F_NE_CONSTRUCT(      volatile&&,  value_type<"volatile&&"_t> )
-TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
+TRIVIUM_F_NE_CONSTRUCT(         const&&,  value_type<"const&&"_text> )
+TRIVIUM_F_NE_CONSTRUCT(      volatile&&,  value_type<"volatile&&"_text> )
+TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_text> )
 
 #pragma pop_macro("TRIVIUM_F_NE_CONSTRUCT")
 
@@ -382,27 +380,26 @@ TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
 
 
         template<  typename... Expr  >
-        struct with_noexcept_< false,  s_expr< Expr... >  >
-        :   type_hull<  s_expr< Expr... >  >
+        struct with_noexcept_< false,  s< Expr... >  >
+        :   type_hull<  s< Expr... >  >
         { };
 
 
 
         template<  typename... Expr  >
-        struct with_noexcept_< true,  s_expr< Expr... >  >
-        :   type_hull<  s_expr< Expr...,  value_type<"noexcept"_t>  >  >
+        struct with_noexcept_< true,  s< Expr... >  >
+        :   type_hull<  s< Expr...,  value_type<"noexcept"_text>  >  >
         { };
 
 
 
         template<  typename     R
                 ,  typename...  Xs
-                ,  bool         ne
                 >
-        struct deconstruct<   R (Xs...) noexcept(ne)  >
-        :   with_noexcept_< ne
-                          ,  s_expr<  value_type<"function"_t>
-                                   ,  s_expr<  value_type<"signature"_t>
+        struct deconstruct<   R (Xs...) noexcept  >
+        :   with_noexcept_<  true
+                          ,  s<  value_type<"function"_text>
+                                   ,  s<  value_type<"signature"_text>
                                             ,  typename deconstruct<R>::type
                                             ,  typename deconstruct<Xs>::type...
                                             >
@@ -415,12 +412,11 @@ TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
 #define TRIVIUM_F_DECONSTRUCT(QUAL, QUAL_)                                          \
        template<  typename     R                                                    \
                 ,  typename...  Xs                                                  \
-                ,  bool         ne                                                  \
                 >                                                                   \
-        struct deconstruct<   R (Xs...) QUAL noexcept(ne)  >                        \
-        :   with_noexcept_< ne                                                      \
-                          ,  s_expr<  value_type<"function"_t>                      \
-                                   ,  s_expr<  value_type<"signature"_t>            \
+        struct deconstruct<   R (Xs...) QUAL noexcept      >                        \
+        :   with_noexcept_< true                                                    \
+                          ,  s<  value_type<"function"_text>                      \
+                                   ,  s<  value_type<"signature"_text>            \
                                             ,  typename deconstruct<R>::type        \
                                             ,  typename deconstruct<Xs>::type...    \
                                             >                                       \
@@ -430,22 +426,77 @@ TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
         { };
 
 
-        TRIVIUM_F_DECONSTRUCT(               &,  value_type<"&"_t> )
-        TRIVIUM_F_DECONSTRUCT(              &&,  value_type<"&&"_t> )
+        TRIVIUM_F_DECONSTRUCT(               &,  value_type<"&"_text> )
+        TRIVIUM_F_DECONSTRUCT(              &&,  value_type<"&&"_text> )
 
-        TRIVIUM_F_DECONSTRUCT(           const,  value_type<"const"_t> )
-        TRIVIUM_F_DECONSTRUCT(        volatile,  value_type<"volatile"_t> )
-        TRIVIUM_F_DECONSTRUCT(  const volatile,  value_type<"const_volatile"_t> )
+        TRIVIUM_F_DECONSTRUCT(           const,  value_type<"const"_text> )
+        TRIVIUM_F_DECONSTRUCT(        volatile,  value_type<"volatile"_text> )
+        TRIVIUM_F_DECONSTRUCT(  const volatile,  value_type<"const_volatile"_text> )
 
-        TRIVIUM_F_DECONSTRUCT(          const&,  value_type<"const&"_t> )
-        TRIVIUM_F_DECONSTRUCT(       volatile&,  value_type<"volatile&"_t> )
-        TRIVIUM_F_DECONSTRUCT( const volatile&,  value_type<"const_volatile&"_t> )
+        TRIVIUM_F_DECONSTRUCT(          const&,  value_type<"const&"_text> )
+        TRIVIUM_F_DECONSTRUCT(       volatile&,  value_type<"volatile&"_text> )
+        TRIVIUM_F_DECONSTRUCT( const volatile&,  value_type<"const_volatile&"_text> )
 
-        TRIVIUM_F_DECONSTRUCT(         const&&,  value_type<"const&&"_t> )
-        TRIVIUM_F_DECONSTRUCT(      volatile&&,  value_type<"volatile&&"_t> )
-        TRIVIUM_F_DECONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
+        TRIVIUM_F_DECONSTRUCT(         const&&,  value_type<"const&&"_text> )
+        TRIVIUM_F_DECONSTRUCT(      volatile&&,  value_type<"volatile&&"_text> )
+        TRIVIUM_F_DECONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_text> )
 
 #pragma pop_macro("TRIVIUM_F_DECONSTRUCT")
+
+
+// The same without noexcept:
+
+
+        template<  typename     R
+                ,  typename...  Xs
+                >
+        struct deconstruct<   R (Xs...)   >
+        :   with_noexcept_<  false
+                          ,  s<  value_type<"function"_text>
+                                   ,  s<  value_type<"signature"_text>
+                                            ,  typename deconstruct<R>::type
+                                            ,  typename deconstruct<Xs>::type...
+                                            >
+                                   >
+                          >
+        { };
+
+#pragma push_macro("TRIVIUM_F_DECONSTRUCT")
+
+#define TRIVIUM_F_DECONSTRUCT(QUAL, QUAL_)                                          \
+       template<  typename     R                                                    \
+                ,  typename...  Xs                                                  \
+                >                                                                   \
+        struct deconstruct<   R (Xs...) QUAL               >                        \
+        :   with_noexcept_< false                                                   \
+                          ,  s<  value_type<"function"_text>                      \
+                                   ,  s<  value_type<"signature"_text>            \
+                                            ,  typename deconstruct<R>::type        \
+                                            ,  typename deconstruct<Xs>::type...    \
+                                            >                                       \
+                                   ,  QUAL_                                         \
+                                   >                                                \
+                          >                                                         \
+        { };
+
+
+        TRIVIUM_F_DECONSTRUCT(               &,  value_type<"&"_text> )
+        TRIVIUM_F_DECONSTRUCT(              &&,  value_type<"&&"_text> )
+
+        TRIVIUM_F_DECONSTRUCT(           const,  value_type<"const"_text> )
+        TRIVIUM_F_DECONSTRUCT(        volatile,  value_type<"volatile"_text> )
+        TRIVIUM_F_DECONSTRUCT(  const volatile,  value_type<"const_volatile"_text> )
+
+        TRIVIUM_F_DECONSTRUCT(          const&,  value_type<"const&"_text> )
+        TRIVIUM_F_DECONSTRUCT(       volatile&,  value_type<"volatile&"_text> )
+        TRIVIUM_F_DECONSTRUCT( const volatile&,  value_type<"const_volatile&"_text> )
+
+        TRIVIUM_F_DECONSTRUCT(         const&&,  value_type<"const&&"_text> )
+        TRIVIUM_F_DECONSTRUCT(      volatile&&,  value_type<"volatile&&"_text> )
+        TRIVIUM_F_DECONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_text> )
+
+#pragma pop_macro("TRIVIUM_F_DECONSTRUCT")
+
 
 
 
@@ -457,7 +508,7 @@ TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_t> )
 
 
         template<  typename... FXs  >
-        struct cpp_type_from_symbolic_<  s_expr< FXs... >  >
+        struct cpp_type_from_symbolic_<  s< FXs... >  >
         :   construct<  typename cpp_type_from_symbolic_<FXs>::type...  >
         { };
 

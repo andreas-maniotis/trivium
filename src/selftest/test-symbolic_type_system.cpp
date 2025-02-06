@@ -14,9 +14,9 @@
 
 
 #include "lt/symbolic_type_system.hpp"
-#include "lt/navigator.hpp"
-#include "lt/fundamental_types/combinator.hpp"
-
+#include "lt/map.hpp"
+#include "lt/text.hpp"
+#include "lt/interpreter.hpp"
 
 
 // -----------------------------------------------------------------------------
@@ -25,8 +25,6 @@
 //
 // ------------------------------------------------------------------------------
 
-
-using lt::operator""_s;
 
 
 template<  typename... >
@@ -37,13 +35,30 @@ struct x {};
 struct y {};
 
 
-using nav  =
-lt::navigator<  lt::parameter<      "C++"_s,  lt::combinator<1, lt::ts::cpp>  >
-             ,  lt::parameter< "Symbolic"_s,  lt::combinator<1, lt::ts::symbolic>  >
-             ,  lt::parameter<        "f"_s,  lt::class_template< f >  >
-             ,  lt::parameter<        "x"_s,  x  >
-             ,  lt::parameter<        "y"_s,  y  >
-             >;
+
+constexpr auto  nav  =
+
+lt::map{  lt::assign<  "C++",       lt::combinator< 1, lt::ts::cpp >  >
+       ,  lt::assign<  "Symbolic",  lt::combinator< 1, lt::ts::symbolic >  >
+       ,  lt::assign<  "f",         lt::class_template< f >  >
+       ,  lt::assign<  "x",         x  >
+       ,  lt::assign<  "y",         y  >
+       };
+
+
+
+template< lt::text<>::literal prog >
+using nav_eval = lt::eval< prog,  nav >;
+
+
+
+template<  typename...  Entries  >
+struct nav_add_or_replace_t
+{
+    template<  lt::text<>::literal program  >
+    using eval = lt::eval<  program,  nav.add_or_replace(  Entries{}...  )  >;
+};
+
 
 
 // -----------------------------------------------------------------------------
@@ -55,8 +70,10 @@ lt::navigator<  lt::parameter<      "C++"_s,  lt::combinator<1, lt::ts::cpp>  >
 
 TEST_CASE("class templates")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list 'class_template (` 'f)  ))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list 'class_template (` 'f)  ))" >;
     using cpp_Expr_1  =  f<>;
 
 
@@ -65,19 +82,19 @@ TEST_CASE("class templates")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >) >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"class_template"_s>
-                                    ,  lt::class_template<f>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"class_template"_text>
+                               ,  lt::class_template<f>
+                               >;
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
 
 
 
-    using cpp_expr_2  =  nav::eval< "( (` 'C++) (list(list 'class_template (` 'f)  (` 'x))))"_s >;
+    using cpp_expr_2  =  nav_eval< "( (` 'C++) (list(list 'class_template (` 'f)  (` 'x))))" >;
     using cpp_Expr_2  =  f<x>;
 
 
@@ -87,13 +104,13 @@ TEST_CASE("class templates")
 
 
     using lisp_expr_2  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_2 >  >::eval< "( (` 'Symbolic)  (` 'z))"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_2  >)  >::eval< "( (` 'Symbolic)  (` 'z))" >;
 
 
-    using lisp_Expr_2   =  lt::s_expr<  lt::value_type<"class_template"_s>
-                                     ,  lt::class_template<f>
-                                     ,  x
-                                     >;
+    using lisp_Expr_2   =  lt::s<  lt::value_type<"class_template"_text>
+                                ,  lt::class_template<f>
+                                ,  x
+                                >;
 
     lt::selftest::check_expression_equality<  lisp_expr_2,  lisp_Expr_2  >("lisp_expr_2: ");
 }
@@ -109,8 +126,10 @@ TEST_CASE("class templates")
 
 TEST_CASE("references")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '& (` 'x) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '& (` 'x) )))" >;
     using cpp_Expr_1  =  x&;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -118,11 +137,11 @@ TEST_CASE("references")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"&"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"&"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -132,8 +151,10 @@ TEST_CASE("references")
 
 TEST_CASE("rval-references")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '&& (` 'x) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '&& (` 'x) )))" >;
     using cpp_Expr_1  =  x&&;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -141,11 +162,11 @@ TEST_CASE("rval-references")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"&&"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"&&"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -155,8 +176,10 @@ TEST_CASE("rval-references")
 
 TEST_CASE("const")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list 'const (` 'x) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list 'const (` 'x) )))" >;
     using cpp_Expr_1  =  x const;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -164,11 +187,11 @@ TEST_CASE("const")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"const"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"const"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -178,8 +201,10 @@ TEST_CASE("const")
 
 TEST_CASE("volatile")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list 'volatile (` 'x) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list 'volatile (` 'x) )))" >;
     using cpp_Expr_1  =  x volatile;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -187,11 +212,11 @@ TEST_CASE("volatile")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"volatile"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"volatile"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -201,8 +226,10 @@ TEST_CASE("volatile")
 
 TEST_CASE("const volatile")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list 'const_volatile (` 'x) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list 'const_volatile (` 'x) )))" >;
     using cpp_Expr_1  =  x const volatile;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -210,11 +237,11 @@ TEST_CASE("const volatile")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"const_volatile"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"const_volatile"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -231,8 +258,10 @@ TEST_CASE("const volatile")
 
 TEST_CASE("array []")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list 'array (` 'x) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list 'array (` 'x) )))" >;
     using cpp_Expr_1  =  x [];
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -240,11 +269,11 @@ TEST_CASE("array []")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"array"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"array"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -254,8 +283,10 @@ TEST_CASE("array []")
 
 TEST_CASE("array [N]")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "((` 'C++) (list (list 'array (` 'x) 3 )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "((` 'C++) (list (list 'array (` 'x) 3 )))" >;
     using cpp_Expr_1  =  x [3];
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -263,11 +294,11 @@ TEST_CASE("array [N]")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"array"_s>,  x,  lt::integer<3>   >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"array"_text>,  x,  lt::integer<3>   >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -285,7 +316,10 @@ TEST_CASE("array [N]")
 
 TEST_CASE("*")
 {
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '* (` 'x) )))"_s >;
+    using lt::operator""_text;
+
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '* (` 'x) )))" >;
     using cpp_Expr_1  =  x *;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -293,11 +327,11 @@ TEST_CASE("*")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"*"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"*"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -307,7 +341,10 @@ TEST_CASE("*")
 
 TEST_CASE("*const")
 {
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '*const (` 'x) )))"_s >;
+    using lt::operator""_text;
+
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '*const (` 'x) )))" >;
     using cpp_Expr_1  =  x *const;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -315,11 +352,11 @@ TEST_CASE("*const")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"*const"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"*const"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -329,7 +366,10 @@ TEST_CASE("*const")
 
 TEST_CASE("*volatile")
 {
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '*volatile (` 'x) )))"_s >;
+    using lt::operator""_text;
+
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '*volatile (` 'x) )))" >;
     using cpp_Expr_1  =  x *volatile;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -337,11 +377,11 @@ TEST_CASE("*volatile")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"*volatile"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"*volatile"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -351,7 +391,10 @@ TEST_CASE("*volatile")
 
 TEST_CASE("*const_volatile")
 {
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '*const_volatile (` 'x) )))"_s >;
+    using lt::operator""_text;
+
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '*const_volatile (` 'x) )))" >;
     using cpp_Expr_1  =  x *const volatile;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -359,11 +402,11 @@ TEST_CASE("*const_volatile")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"*const_volatile"_s>,  x  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"*const_volatile"_text>,  x  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -380,8 +423,10 @@ TEST_CASE("*const_volatile")
 
 TEST_CASE("Member Pointer ::*")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval< "( (` 'C++) (list (list '::*  (` 'x)  (` 'y) )))"_s >;
+
+    using cpp_expr_1  =  nav_eval< "( (` 'C++) (list (list '::*  (` 'x)  (` 'y) )))" >;
     using cpp_Expr_1  =  y  x::*;
 
     lt::selftest::check_expression_equality< cpp_expr_1, cpp_Expr_1 >("cpp_expr_1: ");
@@ -389,11 +434,11 @@ TEST_CASE("Member Pointer ::*")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"::*"_s>,  x,  y  >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"::*"_text>,  x,  y  >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -410,9 +455,11 @@ TEST_CASE("Member Pointer ::*")
 
 TEST_CASE("x(y): ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y);
@@ -422,13 +469,13 @@ TEST_CASE("x(y): ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -440,9 +487,11 @@ template<  typename > struct abominable_type { };
 
 TEST_CASE("x(y) &: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) &;
@@ -454,14 +503,14 @@ TEST_CASE("x(y) &: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -473,9 +522,11 @@ TEST_CASE("x(y) &: ")
 
 TEST_CASE("x(y) &&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '&& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '&& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) &&;
@@ -487,14 +538,14 @@ TEST_CASE("x(y) &&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"&&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"&&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -505,9 +556,11 @@ TEST_CASE("x(y) &&: ")
 
 TEST_CASE("x(y) const: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const;
@@ -519,14 +572,14 @@ TEST_CASE("x(y) const: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -538,9 +591,11 @@ TEST_CASE("x(y) const: ")
 
 TEST_CASE("x(y) volatile: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) volatile;
@@ -552,14 +607,14 @@ TEST_CASE("x(y) volatile: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"volatile"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"volatile"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -571,9 +626,11 @@ TEST_CASE("x(y) volatile: ")
 
 TEST_CASE("x(y) const volatile: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const volatile;
@@ -585,14 +642,14 @@ TEST_CASE("x(y) const volatile: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const_volatile"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const_volatile"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -604,9 +661,11 @@ TEST_CASE("x(y) const volatile: ")
 
 TEST_CASE("x(y) const&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const&;
@@ -618,14 +677,14 @@ TEST_CASE("x(y) const&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -637,9 +696,11 @@ TEST_CASE("x(y) const&: ")
 
 TEST_CASE("x(y) volatile&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) volatile&;
@@ -651,14 +712,14 @@ TEST_CASE("x(y) volatile&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"volatile&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"volatile&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -670,9 +731,11 @@ TEST_CASE("x(y) volatile&: ")
 
 TEST_CASE("x(y) const volatile&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const volatile&;
@@ -684,14 +747,14 @@ TEST_CASE("x(y) const volatile&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const_volatile&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const_volatile&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -703,9 +766,11 @@ TEST_CASE("x(y) const volatile&: ")
 
 TEST_CASE("x(y) const&&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const&& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const&& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const&&;
@@ -717,14 +782,14 @@ TEST_CASE("x(y) const&&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const&&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const&&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -736,9 +801,11 @@ TEST_CASE("x(y) const&&: ")
 
 TEST_CASE("x(y) volatile&&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile&& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile&& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) volatile&&;
@@ -750,14 +817,14 @@ TEST_CASE("x(y) volatile&&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"volatile&&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"volatile&&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -769,9 +836,11 @@ TEST_CASE("x(y) volatile&&: ")
 
 TEST_CASE("x(y) const volatile&&: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile&& ) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile&& ) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const volatile&&;
@@ -783,14 +852,14 @@ TEST_CASE("x(y) const volatile&&: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const_volatile&&"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const_volatile&&"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -809,9 +878,11 @@ TEST_CASE("x(y) const volatile&&: ")
 
 TEST_CASE("x(y) noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) noexcept;
@@ -821,14 +892,14 @@ TEST_CASE("x(y) noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    , lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               , lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  lisp_expr_1,  lisp_Expr_1  >("lisp_expr_1: ");
@@ -838,9 +909,11 @@ TEST_CASE("x(y) noexcept: ")
 
 TEST_CASE("x(y) &  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) & noexcept;
@@ -852,15 +925,15 @@ TEST_CASE("x(y) &  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -872,9 +945,11 @@ TEST_CASE("x(y) &  noexcept: ")
 
 TEST_CASE("x(y) &&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '&& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) '&& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) && noexcept;
@@ -886,15 +961,15 @@ TEST_CASE("x(y) &&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"&&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"&&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -905,9 +980,11 @@ TEST_CASE("x(y) &&  noexcept: ")
 
 TEST_CASE("x(y) const  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const noexcept;
@@ -919,15 +996,15 @@ TEST_CASE("x(y) const  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -939,9 +1016,11 @@ TEST_CASE("x(y) const  noexcept: ")
 
 TEST_CASE("x(y) volatile  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) volatile noexcept;
@@ -953,15 +1032,15 @@ TEST_CASE("x(y) volatile  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"volatile"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"volatile"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -973,9 +1052,11 @@ TEST_CASE("x(y) volatile  noexcept: ")
 
 TEST_CASE("x(y) const volatile  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const volatile noexcept;
@@ -987,15 +1068,15 @@ TEST_CASE("x(y) const volatile  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const_volatile"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const_volatile"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -1007,9 +1088,11 @@ TEST_CASE("x(y) const volatile  noexcept: ")
 
 TEST_CASE("x(y) const&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const& noexcept;
@@ -1021,15 +1104,15 @@ TEST_CASE("x(y) const&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -1041,9 +1124,11 @@ TEST_CASE("x(y) const&  noexcept: ")
 
 TEST_CASE("x(y) volatile&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) volatile& noexcept;
@@ -1055,15 +1140,15 @@ TEST_CASE("x(y) volatile&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"volatile&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"volatile&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -1075,9 +1160,11 @@ TEST_CASE("x(y) volatile&  noexcept: ")
 
 TEST_CASE("x(y) const volatile&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const volatile& noexcept;
@@ -1089,15 +1176,15 @@ TEST_CASE("x(y) const volatile&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const_volatile&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const_volatile&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -1109,9 +1196,11 @@ TEST_CASE("x(y) const volatile&  noexcept: ")
 
 TEST_CASE("x(y) const&&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const&& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const&& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const&& noexcept;
@@ -1123,15 +1212,15 @@ TEST_CASE("x(y) const&&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const&&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const&&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -1143,9 +1232,11 @@ TEST_CASE("x(y) const&&  noexcept: ")
 
 TEST_CASE("x(y) volatile&&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile&& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'volatile&& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) volatile&& noexcept;
@@ -1157,15 +1248,15 @@ TEST_CASE("x(y) volatile&&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"volatile&&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"volatile&&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>
@@ -1177,9 +1268,11 @@ TEST_CASE("x(y) volatile&&  noexcept: ")
 
 TEST_CASE("x(y) const volatile&&  noexcept: ")
 {
+    using lt::operator""_text;
 
-    using cpp_expr_1  =  nav::eval<
-    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile&& 'noexcept) )) "_s  >;
+
+    using cpp_expr_1  =  nav_eval<
+    "( (` 'C++) (list ( list  'function  (list 'signature  (` 'x)  (` 'y)  ) 'const_volatile&& 'noexcept) ))"  >;
 
 
     using cpp_Expr_1  =  x(y) const volatile&& noexcept;
@@ -1191,15 +1284,15 @@ TEST_CASE("x(y) const volatile&&  noexcept: ")
 
 
     using lisp_expr_1  =
-    nav::add_entries<  lt::parameter< "z"_s,  cpp_Expr_1 >  >::eval< "( (` 'Symbolic)  (` 'z) )"_s >;
+    nav_add_or_replace_t<  decltype(lt::assign<  "z",  cpp_Expr_1  >)  >::eval< "( (` 'Symbolic)  (` 'z) )" >;
 
 
 
-    using lisp_Expr_1  =  lt::s_expr<  lt::value_type<"function"_s>
-                                    ,  lt::s_expr<  lt::value_type<"signature"_s>,  x,  y  >
-                                    ,  lt::value_type<"const_volatile&&"_s>
-                                    ,  lt::value_type<"noexcept"_s>
-                                    >;
+    using lisp_Expr_1  =  lt::s<  lt::value_type<"function"_text>
+                               ,  lt::s<  lt::value_type<"signature"_text>,  x,  y  >
+                               ,  lt::value_type<"const_volatile&&"_text>
+                               ,  lt::value_type<"noexcept"_text>
+                               >;
 
 
     lt::selftest::check_expression_equality<  abominable_type<lisp_expr_1>

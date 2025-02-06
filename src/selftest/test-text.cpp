@@ -11,8 +11,7 @@
 //  #define TRIVIUM_CHECK_IS_DYNAMIC
 #include "lt/selftest/selftest.hpp"
 
-
-#include "lt/fundamental_types/text.hpp"
+#include "lt/text.hpp"
 
 
 
@@ -48,18 +47,18 @@ TEST_CASE("text_type concept")
 
 // ================================================================================================
 //
-//  Literal operator ""_t for texts
+//  Literal operator ""_text for texts
 //
 // ------------------------------------------------------------------------------------------------
 
 
 TEST_CASE("text")
 {
-    using lt::operator ""_t;
+    using lt::operator ""_text;
 
 
-    auto  text_1   = ""_t;
-    auto  text_2   = "abc"_t;
+    auto  text_1   = ""_text;
+    auto  text_2   = "abc"_text;
 
 
     lt::selftest::check_expression_equality<  decltype(text_1),  lt::text<>  >();

@@ -1,4 +1,5 @@
 #CXX   := g++ -Wall -pedantic
+#CXX    := /opt/gcc/13/bin/g++
 CXX   := clang++ -Wall -pedantic
 #CXX  := nvcc
 FLAGS := -std=c++20 -I../../include  -g -O0 -fconstexpr-depth=1024

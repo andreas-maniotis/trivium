@@ -9,27 +9,27 @@
 #pragma once
 
 
-#include "../fundamental_types/s_expr.hpp"
-#include "../fundamental_types/lut.hpp"
-#include "../fundamental_types/application.hpp"
-#include "../fundamental_types/tuple.hpp"
-#include "../fundamental_types/type_hull.hpp"
-#include "../fundamental_types/value.hpp"
-#include "../fundamental_types/combinator.hpp"
+#include "symbolic_expressions.hpp"
+#include "map.hpp"
+#include "type_hull.hpp"
+#include "symbolic_type_system.hpp"
 
 
 
 namespace lt
 {
-    template<  typename...  >
-    struct navigator;
-}
+    template<  auto const symbols  = map{}  >
+    struct interpreter;
 
 
 
-namespace lt
-{
-    struct lisp
+    template<  literal_or_s...   >
+    struct with;
+
+
+
+    template<>
+    struct interpreter< map{}  >
     {
     private:
 
@@ -72,22 +72,24 @@ namespace lt
 
 // elementary functions (except quote):
 
-        using  apply        =  value_type<"apply"_t>;
-        using  and_         =  value_type<"and"_t>;
-        using  cons         =  value_type<"cons"_t>;
-        using  def          =  value_type<"def"_t>;
-        using  drop_first   =  value_type<"drop_first"_t>;
-        using  evaluate     =  value_type<"eval"_t>;
-        using  eq           =  value_type<"eq"_t>;
-        using  first        =  value_type<"first"_t>;
-        using  if_          =  value_type<"if"_t>;
-        using  irreducible  =  value_type<"irreducible"_t>;
-        using  not_         =  value_type<"not"_t>;
-        using  or_          =  value_type<"or"_t>;
-        using  requires_    =  value_type<"requires"_t>;
-        using  xor_         =  value_type<"xor"_t>;
-        using  true_        =  value_type<"true"_t>;
-        using  false_       =  value_type<"false"_t>;
+        using  apply        =  value_type<"apply"_text>;
+        using  and_         =  value_type<"and"_text>;
+        using  cpp          =  value_type<"C++"_text>;
+        using  cons         =  value_type<"cons"_text>;
+        using  def          =  value_type<"def"_text>;
+        using  drop_first   =  value_type<"drop_first"_text>;
+        using  evaluate     =  value_type<"eval"_text>;
+        using  eq           =  value_type<"eq"_text>;
+        using  first        =  value_type<"first"_text>;
+        using  if_          =  value_type<"if"_text>;
+        using  irreducible  =  value_type<"irreducible"_text>;
+        using  not_         =  value_type<"not"_text>;
+        using  or_          =  value_type<"or"_text>;
+        using  requires_    =  value_type<"requires"_text>;
+        using  symbolic     =  value_type<"Symbolic"_text>;
+        using  xor_         =  value_type<"xor"_text>;
+        using  true_        =  value_type<"true"_text>;
+        using  false_       =  value_type<"false"_text>;
 
 
 // -----------------------------------------------------------------------------
@@ -113,19 +115,21 @@ namespace lt
 
 
         template<  typename... Entries  >
-        static consteval int  arity(navigator< Entries... >) { return 1; }
+        static consteval int  arity(map< Entries... >) { return 1; }
 
 
         static consteval int  arity(true_)         { return 0; }
         static consteval int  arity(false_)        { return 0; }
-        static consteval int  arity(s_expr<>)      { return 0; }
+        static consteval int  arity(s<>)           { return 0; }
 
 
+        static consteval int  arity(cpp)           { return 1; }
+        static consteval int  arity(drop_first)    { return 1; }
         static consteval int  arity(evaluate)      { return 1; }
         static consteval int  arity(first)         { return 1; }
         static consteval int  arity(irreducible)   { return 1; }
         static consteval int  arity(not_)          { return 1; }
-        static consteval int  arity(drop_first)    { return 1; }
+        static consteval int  arity(symbolic)      { return 1; }
 
         static consteval int  arity(apply)         { return 2; }
         static consteval int  arity(and_)          { return 2; }
@@ -136,17 +140,17 @@ namespace lt
         static consteval int  arity(or_)           { return 2; }
         static consteval int  arity(xor_)          { return 2; }
         static consteval int  arity(Y_combinator)  { return 2; }
-        static consteval int  arity(op<"=="_t>)    { return 2; }
-        static consteval int  arity(op<"!="_t>)    { return 2; }
-        static consteval int  arity(op<"<"_t>)     { return 2; }
-        static consteval int  arity(op<"<="_t>)    { return 2; }
-        static consteval int  arity(op<">"_t>)     { return 2; }
-        static consteval int  arity(op<">="_t>)    { return 2; }
-        static consteval int  arity(op<"+"_t>)     { return 2; }
-        static consteval int  arity(op<"-"_t>)     { return 2; }
-        static consteval int  arity(op<"*"_t>)     { return 2; }
-        static consteval int  arity(op<"/"_t>)     { return 2; }
-        static consteval int  arity(op<"%"_t>)     { return 2; }
+        static consteval int  arity(op<"=="_text>)    { return 2; }
+        static consteval int  arity(op<"!="_text>)    { return 2; }
+        static consteval int  arity(op<"<"_text>)     { return 2; }
+        static consteval int  arity(op<"<="_text>)    { return 2; }
+        static consteval int  arity(op<">"_text>)     { return 2; }
+        static consteval int  arity(op<">="_text>)    { return 2; }
+        static consteval int  arity(op<"+"_text>)     { return 2; }
+        static consteval int  arity(op<"-"_text>)     { return 2; }
+        static consteval int  arity(op<"*"_text>)     { return 2; }
+        static consteval int  arity(op<"/"_text>)     { return 2; }
+        static consteval int  arity(op<"%"_text>)     { return 2; }
 
 
         static consteval int  arity(if_)           { return 3; }
@@ -236,8 +240,8 @@ namespace lt
 
 
         template<  eval_mode mode >
-        struct eval_<  mode,  s_expr<>  >
-        :   with_result<  s_expr<>  >
+        struct eval_<  mode,  s<>  >
+        :   with_result<  s<>  >
         { };
 
 
@@ -248,9 +252,10 @@ namespace lt
 
 
         template<  eval_mode mode >
-        struct eval_<  mode,  s_expr< list<0>  >  >
-        :   with_result<  s_expr<>  >
+        struct eval_<  mode,  s< list<0> >  >
+        :   with_result<  s<>  >
         { };
+
 
 
 // -----------------------------------------------------------------------------
@@ -301,9 +306,9 @@ R"(
             int{1 + sizeof...(Xs)}  <  arity(Op{})
         )
         struct eval_<  mode
-                    ,  s_expr<  Op,  X,  Xs...  >
+                    ,  s<  Op,  X,  Xs...  >
                     >
-        :   with_result<  s_expr<  Op,  X,  Xs...  >  >
+        :   with_result<  s<  Op,  X,  Xs...  >  >
         {};
 
 
@@ -319,7 +324,7 @@ R"(
             arity(Op{}) < 0
         )
         struct eval_<  mode
-                    ,  s_expr<  Op,  X,  Xs...  >
+                    ,  s<  Op,  X,  Xs...  >
                     >
         {
            static_assert( arity(Op{}) >= 0,
@@ -340,7 +345,7 @@ R"(
 
 
 
-// Expression ready for evalution:
+// Expression ready for evamapion:
 
         template<  eval_mode    mode
                 ,  typename     Op
@@ -348,7 +353,7 @@ R"(
                 ,  typename...  Xs
                 >
         struct eval_<  mode
-                    ,  s_expr<  Op,  X,  Xs...  >
+                    ,  s<  Op,  X,  Xs...  >
                     >
         :   call<  mode,  Op,  X,  Xs...  >
         {
@@ -375,10 +380,10 @@ R"(
             2 + sizeof...(Ys)  > arity(Op{})
         )
         struct eval_<  mode
-                    ,  s_expr<  Op,  X,  Y,  Ys...  >
+                    ,  s<  Op,  X,  Y,  Ys...  >
                     >
         :   eval_<  mode
-                 ,  s_expr<  eager_eval< s_expr< Op,  X  >  >
+                 ,  s<  eager_eval< s< Op,  X  >  >
                           ,  Y
                           ,  Ys...
                           >
@@ -402,10 +407,10 @@ R"(
             2 + sizeof...(Xs)  <=  arity(Op{})
         )
         struct eval_<  mode
-                    ,  s_expr<  s_expr<  Op,  X,  Xs...  >,  Y  >
+                    ,  s<  s<  Op,  X,  Xs...  >,  Y  >
                     >
         :   eval_<  mode
-                 ,  s_expr<  Op,  X,  Xs... ,  Y  >
+                 ,  s<  Op,  X,  Xs... ,  Y  >
                  >
         { };
 
@@ -428,10 +433,10 @@ R"(
             2 + sizeof...(Xs)  <=  arity(Op{})
         )
         struct eval_<  mode
-                    ,  s_expr<  s_expr<  Op,  X,  Xs...  >,  Y,  Z,  Zs...  >
+                    ,  s<  s<  Op,  X,  Xs...  >,  Y,  Z,  Zs...  >
                     >
         :   eval_<  mode
-                 ,  s_expr<  eager_eval<  s_expr<  Op,  X,  Xs...,  Y  >  >
+                 ,  s<  eager_eval<  s<  Op,  X,  Xs...,  Y  >  >
                           ,  Z
                           ,  Zs...
                           >
@@ -449,10 +454,10 @@ R"(
                 ,  typename...  Ys
                 >
        struct eval_<  mode
-                    ,  s_expr<  s_expr<  X,  Xs... >,  Y,  Ys...  >
+                    ,  s<  s<  X,  Xs... >,  Y,  Ys...  >
                     >
         :   eval_<  mode
-                ,  s_expr<  X,  Xs...,  Y,  Ys...  >
+                ,  s<  X,  Xs...,  Y,  Ys...  >
                 >
         { };
 
@@ -471,7 +476,7 @@ R"(
 
         template<  typename... Xs  >
         struct eval_<  eval_mode::eager,  lazy_list<  Xs...  >  >
-        :   with_result<  s_expr<   typename eval_<  eval_mode::eager,  Xs  >::type...  >  >
+        :   with_result<  s<   typename eval_<  eval_mode::eager,  Xs  >::type...  >  >
         { };
 
 
@@ -491,7 +496,7 @@ R"(
                    ,  list< N >
                    ,  Xs...
                    >
-        :   with_result<  s_expr<  typename eval_<  eval_mode::eager,  Xs  >::type...  >  >
+        :   with_result<  s<  typename eval_<  eval_mode::eager,  Xs  >::type...  >  >
         { };
 
 
@@ -528,6 +533,28 @@ R"(
     { };
 
 
+// -----------------------------------------------------------------------------
+//  Symbolic and C++:  (Symbolic type system)
+// -----------------------------------------------------------------------------
+
+
+        template<  eval_mode   mode
+                ,  typename    X
+                >
+        struct call<  mode,  symbolic,  X  >
+        :   with_result<  ts::symbolic<  eager_eval< X >  >  >
+        { };
+
+
+
+        template<  eval_mode   mode
+                ,  typename    X
+                >
+        struct call<  mode,  cpp,  X  >
+        :   with_result<  ts::cpp<  eager_eval< X >  >  >
+        { };
+
+
 
 //  ----------------------------------------------------------------------------
 //  first:
@@ -556,7 +583,7 @@ R"(
                 ,  typename...  Xs
                 >
         struct First<  mode
-                   ,  s_expr<  X,  Xs...  >
+                   ,  s<  X,  Xs...  >
                    >
         :   with_result< X  >
         { };
@@ -599,9 +626,9 @@ R"(
                 ,  typename...  Xs
                 >
         struct Drop_First<  mode
-                        ,  s_expr<  X,  Xs...  >
+                        ,  s<  X,  Xs...  >
                         >
-        :   with_result<  s_expr< Xs... >  >
+        :   with_result<  s< Xs... >  >
         { };
 
 
@@ -643,7 +670,7 @@ R"(
                 >
         struct Cons<  eval_mode::lazy
                    ,  X
-                   ,  s_expr<  Xs...  >
+                   ,  s<  Xs...  >
                    >
         :   with_result<  lazy_list<  X,  quoted<Xs>...  >  >
         { };
@@ -655,9 +682,9 @@ R"(
                 >
         struct Cons<  eval_mode::eager
                    ,  X
-                   ,  s_expr< Xs... >
+                   ,  s< Xs... >
                    >
-        :   with_result<  s_expr<  typename eval_< eval_mode::eager,  X  >::type,  Xs... >  >
+        :   with_result<  s<  typename eval_< eval_mode::eager,  X  >::type,  Xs... >  >
         { };
 
 
@@ -669,7 +696,7 @@ R"(
                    ,  X
                    ,  lazy_list< Xs... >
                    >
-        :   with_result<  s_expr<  typename eval_< eval_mode::eager,  X  >::type
+        :   with_result<  s<  typename eval_< eval_mode::eager,  X  >::type
                                 ,  typename eval_< eval_mode::eager,  Xs  >::type... 
                                 >
                        >
@@ -721,7 +748,7 @@ R"(
 
 
 //  ----------------------------------------------------------------------------
-//   Navigators:
+//   maps:
 //  ----------------------------------------------------------------------------
 
 
@@ -729,16 +756,16 @@ R"(
                 ,  typename...  Entries
                 ,  typename     X
                 >
-        struct call<  mode,  navigator< Entries... >,  X  >
-        :   with_result<  typename navigator< Entries... >::
-                          template lookup<  eager_eval< X >{}  >
+        struct call<  mode,  map< Entries... >,  X  >
+        :   with_result<  typename map< Entries... >::
+                          template lookup<  eager_eval< X >  >
                        >
         { };
 
 
 
 //  ----------------------------------------------------------------------------
-//  Conversion between symbolic boolean values "true"_t / "false_t and
+//  Conversion between symbolic boolean values "true"_text / "false"_text and
 //  the boolean values true/false from the C++-typesystem:
 //  ----------------------------------------------------------------------------
 
@@ -776,7 +803,7 @@ R"(
 
 
         template<  typename... Xs  >
-        struct Irreducible< s_expr<  Xs...  >  >
+        struct Irreducible< s<  Xs...  >  >
         :   decltype(   bool_rep<  sizeof...(Xs) == 0  >()   )
         { };
 
@@ -812,7 +839,7 @@ R"(
 !
 ! METAPROGRAMMING ERROR:
 !
-! A requirement needs to evaluate either to "true"_s or to "false"_s.
+! A requirement needs to evaluate either to "true" or to "false".
 !
 ! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 )" );
@@ -960,7 +987,7 @@ R"(
 //
 //    ( == 3 4 )       ->  false_
 //
-//    ( == () () )     ->  Compilation error. s_expr<> is not an instantiation of
+//    ( == () () )     ->  Compilation error. s<> is not an instantiation of
 //                         value.
 //
 //    ( == true true)  ->  Compilation error.  true_t is not an instantiation of
@@ -980,7 +1007,7 @@ R"(
 
 
         template<  auto x,  auto y  >
-        struct cmp_op<  value_type<"=="_t>
+        struct cmp_op<  value_type<"=="_text>
                      ,   value< x >
                      ,   value< y >
                      >
@@ -990,7 +1017,7 @@ R"(
 
 
         template<  auto x,  auto y  >
-        struct cmp_op<  value_type<"!="_t>
+        struct cmp_op<  value_type<"!="_text>
                      ,   value< x >
                      ,   value< y >
                      >
@@ -1000,7 +1027,7 @@ R"(
 
 
         template<  auto x,  auto y  >
-        struct cmp_op<  value_type<"<"_t>
+        struct cmp_op<  value_type<"<"_text>
                      ,   value< x >
                      ,   value< y >
                      >
@@ -1010,7 +1037,7 @@ R"(
 
 
         template<  auto x,  auto y  >
-        struct cmp_op<  value_type<"<="_t>
+        struct cmp_op<  value_type<"<="_text>
                      ,   value< x >
                      ,   value< y >
                      >
@@ -1020,7 +1047,7 @@ R"(
 
 
         template<  auto x,  auto y  >
-        struct cmp_op<  value_type<">"_t>
+        struct cmp_op<  value_type<">"_text>
                      ,   value< x >
                      ,   value< y >
                      >
@@ -1030,7 +1057,7 @@ R"(
 
 
         template<  auto x,  auto y  >
-        struct cmp_op<  value_type<">="_t>
+        struct cmp_op<  value_type<">="_text>
                      ,   value< x >
                      ,   value< y >
                      >
@@ -1046,12 +1073,12 @@ R"(
                 >
         requires
         (
-            text< cmp... >{}  ==  "=="_t ||
-            text< cmp... >{}  ==  "!="_t ||
-            text< cmp... >{}  ==  "<"_t  ||
-            text< cmp... >{}  ==  "<="_t ||
-            text< cmp... >{}  ==  ">"_t  ||
-            text< cmp... >{}  ==  ">="_t
+            text< cmp... >{}  ==  "=="_text ||
+            text< cmp... >{}  ==  "!="_text ||
+            text< cmp... >{}  ==  "<"_text  ||
+            text< cmp... >{}  ==  "<="_text ||
+            text< cmp... >{}  ==  ">"_text  ||
+            text< cmp... >{}  ==  ">="_text
         )
         struct call<  mode
                    ,  text< cmp... >
@@ -1085,7 +1112,7 @@ R"(
         template<  auto x
                 ,  auto y
                 >
-        struct Ar_Op<  value_type<"+"_t>
+        struct Ar_Op<  value_type<"+"_text>
                     ,  value< x >
                     ,  value< y >
                     >
@@ -1097,7 +1124,7 @@ R"(
         template<  auto x
                 ,  auto y
                 >
-        struct Ar_Op<  value_type<"-"_t>
+        struct Ar_Op<  value_type<"-"_text>
                     ,  value< x >
                     ,  value< y >
                     >
@@ -1109,7 +1136,7 @@ R"(
        template<  auto x
                 ,  auto y
                 >
-        struct Ar_Op<  value_type<"*"_t>
+        struct Ar_Op<  value_type<"*"_text>
                     ,  value< x >
                     ,  value< y >
                     >
@@ -1121,7 +1148,7 @@ R"(
         template<  auto x
                 ,  auto y
                 >
-        struct Ar_Op<  value_type<"/"_t>
+        struct Ar_Op<  value_type<"/"_text>
                     ,  value< x >
                     ,  value< y >
                     >
@@ -1133,7 +1160,7 @@ R"(
         template<  auto x
                 ,  auto y
                 >
-        struct Ar_Op<  value_type<"%"_t>
+        struct Ar_Op<  value_type<"%"_text>
                     ,  value< x >
                     ,  value< y >
                     >
@@ -1149,11 +1176,11 @@ R"(
                 >
         requires
         (
-            text< ar_op... >{} == "+"_t  ||
-            text< ar_op... >{} == "-"_t  ||
-            text< ar_op... >{} == "*"_t  ||
-            text< ar_op... >{} == "/"_t  ||
-            text< ar_op... >{} == "%"_t
+            text< ar_op... >{} == "+"_text  ||
+            text< ar_op... >{} == "-"_text  ||
+            text< ar_op... >{} == "*"_text  ||
+            text< ar_op... >{} == "/"_text  ||
+            text< ar_op... >{} == "%"_text
         )
         struct call<  mode
                    ,  text< ar_op... >
@@ -1236,8 +1263,8 @@ R"(
                 ,  typename     F
                 ,  typename...  Xs
                 >
-        struct Apply<  mode,  F,  s_expr<  Xs... >  >
-        :   eval_<  mode,  s_expr<  F,  quoted<Xs>... >  >
+        struct Apply<  mode,  F,  s<  Xs... >  >
+        :   eval_<  mode,  s<  F,  quoted<Xs>... >  >
         { };
 
 
@@ -1331,9 +1358,9 @@ R"(
                 ,  typename...  Xs
                 >
         struct fix_name_collisions<  text< F_Name... >
-                                  ,  s_expr<  Xs... >
+                                  ,  s<  Xs... >
                                   >
-        :   with_result<  s_expr<  typename fix_name_collisions<  text< F_Name... >,  Xs  >::type...  >  >
+        :   with_result<  s<  typename fix_name_collisions<  text< F_Name... >,  Xs  >::type...  >  >
         { };
 
 
@@ -1344,9 +1371,9 @@ R"(
                 ,  typename...  Xs
                 >
         struct fix_name_collisions<  text< F_Name... >
-                                  ,  s_expr< def,  text< F_Name... >,  F_Term,  X,  Xs...  >
+                                  ,  s< def,  text< F_Name... >,  F_Term,  X,  Xs...  >
                                   >
-        :   with_result<  s_expr<  def
+        :   with_result<  s<  def
                                 ,  text<'@', F_Name... >
                                 ,  subst<  text< F_Name... >,  text< '@',  F_Name...  >,  F_Term  >
                                 ,  subst<  text< F_Name... >,  text< '@',  F_Name...  >,  X  >
@@ -1363,9 +1390,9 @@ R"(
                 ,  typename...  Xs
                 >
         struct fix_name_collisions<  text< F_Name... >
-                                  ,  s_expr< s_expr< def,  text< F_Name... >,  F_Term  >,  X,  Xs...  >
+                                  ,  s< s< def,  text< F_Name... >,  F_Term  >,  X,  Xs...  >
                                   >
-        :   with_result<  s_expr<  def
+        :   with_result<  s<  def
                                 ,  text<'@', F_Name... >
                                 ,  subst<  text< F_Name... >,  text< '@',  F_Name...  >,  F_Term  >
                                 ,  subst<  text< F_Name... >,  text< '@',  F_Name...  >,  X  >
@@ -1382,9 +1409,9 @@ R"(
                 ,  typename...  Xs
                 >
         struct fix_name_collisions<  text< F_Name... >
-                                  ,  s_expr< s_expr<  s_expr<  def,  text< F_Name... >  >,  F_Term  >,  X,  Xs...  >
+                                  ,  s< s<  s<  def,  text< F_Name... >  >,  F_Term  >,  X,  Xs...  >
                                   >
-        :   with_result<  s_expr<  def
+        :   with_result<  s<  def
                                 ,  text<'@', F_Name... >
                                 ,  subst<  text< F_Name... >,  text< '@',  F_Name...  >,  F_Term  >
                                 ,  subst<  text< F_Name... >,  text< '@',  F_Name...  >,  X  >
@@ -1407,7 +1434,7 @@ R"(
                     ,  F
                     ,  X
                     >
-        :   eval_<  mode,  s_expr<  F,  s_expr< Y_combinator, F >,  X  >  >
+        :   eval_<  mode,  s<  F,  s< Y_combinator, F >,  X  >  >
         { };
 
 
@@ -1418,7 +1445,7 @@ R"(
                                    template apply_to< F_Term >
                 >
         struct resolve_recursion
-        :   with_result<  s_expr<  F_,  s_expr< Y_combinator,  F_  >  >  >
+        :   with_result<  s<  F_,  s< Y_combinator,  F_  >  >  >
         { };
 
 
@@ -1530,7 +1557,7 @@ R"(
                    ,  Z
                    >
         :   eval_<  mode
-                 ,  s_expr<  X,  Z,  s_expr<  Y,  Z  >  >
+                 ,  s<  X,  Z,  s<  Y,  Z  >  >
                  >
        { };
 
@@ -1557,7 +1584,7 @@ R"(
                 ,  typename Q
                 >
         struct combine_programs<  P,  Q  >
-        :   with_result<  s_expr< P, Q >  >
+        :   with_result<  s< P, Q >  >
         { };
 
 
@@ -1567,32 +1594,71 @@ R"(
                 ,  typename...  Qs
                 >
         struct combine_programs<  P,  Q,  Qs... >
-        :   with_result<  s_expr< P,  typename combine_programs< Q, Qs... >::type  >  >
+        :   with_result<  s< P,  typename combine_programs< Q, Qs... >::type  >  >
         { };
 
 
 
-        template<  typename...  >
-        friend struct interpreter;
-
-
-
-        template<  typename... >
+        template<  typename,  typename  >
         struct Eval_;
 
 
 
-        template<  typename P  >
-        struct Eval_< P >
-        :   eval_<  eval_mode::eager,  P  >
+
+        template<  typename P,  typename...  Entries  >
+        struct Eval_<  P,  map< Entries... >  >
+        :   eval_<  eval_mode::eager
+                 ,  s<  value_type<"def"_text>,  text<'`'>,  map< Entries... >,  P  >
+                 >
         { };
 
 
 
-        template<  typename P,  typename N  >
-        struct Eval_<  P,  N  >
-        :   eval_<  eval_mode::eager,  s_expr< value_type<"def"_t>,  value_type<"`"_s>,  N, P >  >
-        { };
+
+        struct publicly_visible
+        {
+
+
+/*
+            template<   literal_or_s program_literal,  unsigned N,  typename Expr  >
+            static consteval auto parse_(  literal_or_s<  N,  Expr  >* )
+            {
+                if constexpr ( N == 0 )
+                {
+                    return Expr{};
+                }
+                else
+                {
+                    return  s_expr< static_cast< lt::text<>::literal<N> const&>(program_literal) >{};
+                }
+            }
+*/
+            template<  literal_or_s program_literal  >
+            requires
+            requires()
+            {
+                program_literal.content;
+            }
+            static consteval auto parse_()
+            {
+                return  s_expr< static_cast< typename decltype(program_literal)::type const&>(program_literal) >{};
+            }
+
+
+
+            template<  literal_or_s program_literal  >
+            static consteval auto parse_()
+            ->  typename decltype(program_literal)::type
+            {
+                return  {};
+            }
+
+        };
+
+
+        template<  auto const Map  >
+        friend struct interpreter;
+
 
 
 // -----------------------------------------------------------------------------
@@ -1602,29 +1668,127 @@ R"(
     public:
 
 
-        template<  auto const program,  auto const... navigator  >
-        requires
-        (
-            sizeof...(navigator) <= 1
-        )
-        using eval  = typename Eval_<  value_type< program >,  value_type<navigator>...  >::type;
-
-
-
-        template<  auto const  >
-        inline static constexpr auto dependencies = tuple<>{};
-
-
-
-        inline static consteval auto set_dependencies(  auto const... dep )
-        ->  tuple<  value_type< decltype(dep){} >...  >
-        {
-            return {};
-        }
-
-
-
-        template<  auto const...  >
-        struct with;
+        template<  literal_or_s prog  >
+        using eval  =  typename Eval_<  value_type<  publicly_visible::template parse_< prog >()  >
+                                     ,  value_type< map<>{} >
+                                     >::type;
     };
+
+
+
+    template<  auto const Map  >
+    struct interpreter
+    {
+        template<  literal_or_s  prog >
+        using eval  =
+
+        typename interpreter< map<>{}  >::
+        template Eval_<   value_type<  interpreter<  map<>{}  >::
+                                       publicly_visible::
+                                       template parse_< prog >()  >
+                      ,  value_type< Map >
+                      >::
+        type;
+    };
+
+
+
+    template<  literal_or_s prog,  auto const symbols = map<>{}  >
+    using eval  =  typename interpreter< symbols >::template eval<  prog  >;
+};
+
+
+namespace lt
+{
+    template<>
+    struct with<>
+    {
+        template<  auto const symbols = map{}  >
+        using interpreter = struct interpreter< symbols >;
+
+
+        template<  literal_or_s prog,  auto const symbols = map{}  >
+        using eval = typename lt::interpreter< symbols >::template eval< prog >;
+
+
+    private:
+
+
+        template<  literal_or_s...  >
+        friend struct with;
+
+
+
+        template<  auto const... >
+        struct list_;
+
+
+
+        template<  typename,  typename...  >
+        struct gather;
+
+
+
+
+        template<  auto const...    scanned
+                ,  auto...          lib
+                ,  typename...      Next
+                >
+        struct gather<  list_< scanned... >,  with< lib...  >,  Next...  >
+        :   gather<  list_< scanned... >,  s_expr<lib>...,  Next...  >
+        { };
+
+
+
+
+        template<  auto const...  scanned
+                ,  char...        f
+                ,  typename       X
+                ,  typename...    More
+                >
+        struct gather<  list_<  scanned...  >
+                     ,  s<  value_type<"def"_text>,  text<f...>,  X  >
+                     ,  More...
+                        >
+        :   gather<   list_<  scanned...
+                           ,  assign< lt::text<>::literal{  text<f...>{}  }
+                                    , lt::eval<  s<  value_type<"def"_text>,  text<f...>,  X,  text<f...>  >{}  >
+                                    >
+                            >
+                  ,  More...
+                  >
+        { };
+
+
+
+
+        template<  auto const... scanned  >
+        struct gather<  list_< scanned... >  >
+        {
+            template<  map symbols = map{}  >
+            struct interpreter
+            {
+                template<  literal_or_s  prog  >
+                using eval =  lt::eval<  s_expr< prog,  map{ scanned... }  >{},  symbols  >;
+            };
+
+
+            template<  literal_or_s  prog,  map symbols = map{}  >
+            using eval  =  lt::eval<  s_expr<  prog,  map{ scanned... } >{},  symbols  >;
+        };
+    };
+
+
+
+    template<  literal_or_s     h
+            ,  literal_or_s...  t
+            >
+    struct with<  h,  t...  >
+    :   with<>::template gather<  typename with<>::template list_<>,  s_expr<h>,  s_expr<t>...  >
+    { };
+
+
+
+    template<  literal_or_s... components  >
+    inline constexpr auto lib = with<  components...  >{};
 }

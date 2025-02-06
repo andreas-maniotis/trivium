@@ -13,9 +13,7 @@
 #include "lt/selftest/selftest.hpp"
 
 
-
-#include "lt/fundamental_types/application.hpp"
-#include "lt/fundamental_types/s_expr.hpp"
+#include "lt/symbolic_expressions.hpp"
 
 
 
@@ -29,7 +27,7 @@ TEST_CASE("Combinator I = SKK")
     //  lambda x x  ~  S K K
 
     using lambda_x_x  =  application<  x_  >::apply_to<  x_  >;
-    using s_k_k       =  s_expr< S, K, K >;
+    using s_k_k       =  s< S, K, K >;
 
 
     lt::selftest::check_expression_equality<  lambda_x_x,  s_k_k >();
@@ -49,7 +47,7 @@ TEST_CASE("Combinator S = lambda xyz.xz(yz)")
 
     //  lambda x y z . xz (yz)    ~     S
 
-    using xz_yz  =  s_expr<  x_,  z_,  s_expr<  y_,  z_  >  >;
+    using xz_yz  =  s<  x_,  z_,  s<  y_,  z_  >  >;
 
 
    using lambda_xyz__xz_yz  =  application<  x_,  y_,  z_>::
@@ -82,13 +80,13 @@ TEST_CASE("Combinator B = lxyz.x(yz)")
 
 
 
-    using x_yz  = s_expr<  x_,  s_expr<  y_,  z_  >  >;
+    using x_yz  = s<  x_,  s<  y_,  z_  >  >;
 
 
     //  lambda  x y z . x (y z)   ~  B    with   B :=:  S (KS) K
 
     using B_computed  =  application<  x_,  y_,  z_  >::apply_to<  x_yz  >;
-    using B_expected  =  s_expr<  S,  s_expr< K, S >,  K  >;
+    using B_expected  =  s<  S,  s< K, S >,  K  >;
 
 
     lt::selftest::check_expression_equality<  B_expected,  B_computed  >();

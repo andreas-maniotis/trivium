@@ -1,42 +1,56 @@
 # TRIVIUM:  A LIBRARY FOR SYMBOLIC METAPROGRAMMING IN C++
 
 
-_Metaprogrammed code in C++ can be as simple, clear, reusable, modular and configurable as code that is written in a functional language like Lisp or Haskell._ 
+5 February 2025
+
+================================================
+
+**NOTE: THIS TEXT IS INCOMPLETE. It will be significantly expanded and updated at least once a week until it is (hopefully) ready by 24 February 2025.**
+
+================================================
 
 
-======================================================================
-
-## THIS CONTENT IS A BIT DATED. PLEASE "GIT PULL" ON FEBRUARY 5th 2025. THEN AN IMPROVED VERSION WILL BE PUBLISHED
+*Metaprogrammed code in C++ can be as simple, clear, reusable, modular and configurable as code that is written in a functional language like Lisp or Haskell._*
 
 
-======================================================================
+Template metaprogramming (TMP) code tends to be unfriendly to humans. The code is generally neither easy to read nor easy to write.
 
 
-Trivium is a template metaprogrammaing framework that achieves these objectives through a strict separation of metaprograms and C++ types. It has three components:
+The Trivium framework gives a solution to this problem by organising TMP indirectly by the means of Trivium Lisp, a symbolic domain specific language (DSL) for metaprogramming.  Metaprograms are not encoded directly in C++, but as symbolic expressions in Trivium-Lisp.
 
-1. *Trivium Lisp*, a domain-specific[^1] Lisp dialect that was designed for metaprogramming.
+This indirection allows us to hide all the “ugly parts” of TMP in the implementation of the Trivium Lisp interpreter, which is a “universal” C++ template metaprogram to interpret Trivium Lisp expressions as C++ types.
+
+
+The metaprograms themselves, written in Trivium Lisp, become as clean and as simple as programs written in any reasonable functional language, such as Haskell or Lisp.
+
+
+The framework consists of three components:
+
+1. The DSL *Trivium Lisp* together with an interpreter.
 2. A symbolic representation of the C++ type system.
-3. A structure called *navigator* that connects the interpreter of Trivium Lisp with  the symbolically represented type system.
+3. A simple closure mechanism that connects Trivium Lisp-metaprograms with the C++-type system.
 
-
-In contrast to C++, which allows for metaprogramming by chance rather than by design, Trivium Lisp has been constructed with the explicit purpose of supporting it. Thus metaprograms become as easy to understand, write and maintain as ordinary programs written in a common high-level functional programming language such as Haskell or Lisp. 
-
-
-Trivium is a header only library  written in C++20. Having no dependency on any other library, it can be used with freestanding and hosted C++ implementations. 
-
-
-All the confusing syntactic and semantic peculiarities that make template metaprogramming difficult to use are not present in Trivium Lisp  metaprograms. Instead they are hidden in one "universal template metaprogram", the interpreter of the language. The metaprograms written by library users  are simple and short symbolic expressions. This fact has an important consequence:
-
-
-Trivium can serve as a metaprogramming tool for everyone, not just the small group of template metaprogramming experts.
 
 
 ## Requirements
-C++ 20, no dependencies on any other library. Currently the library compiles with Gcc >= 12.2 and Clang >= 16.0.6. There is ongoing work to support MSVC 2022. Other compilers have not been tested yet.
+C++ 20, no dependencies on any other library. Currently the library compiles with Gcc >= 13.3.1, Clang >= 16.0.6, Msvc 19.42 VS 17.12.
 
 
 ## Download
 [https://www.github.com/andreas-maniotis/libtrivium](https://www.github.com/andreas-maniotis/trivium)
+
+## Structure:
+The framework consists of seven header files that are contained in the folder include/lt:
+
+1. text.hpp:                  compile-time strings;
+2. type_hull.hpp:             a wrapper for C++ types;
+3. map.hpp:                   a compile-time dictionary;
+4. symbolic_expressions.hpp:  symbolic expressions (and lambda expressions);
+5. symbolic_type_system.hpp   a symbolic representation of the C++ type system;
+6. interpreter.hpp:           an interpreter for Trivium Lisp;
+7. corelib.hpp:               a library of Trivium Lisp functions (written in Trivium Lisp).
+
+
 
 
 ## Building Examples and Unit Tests
@@ -46,117 +60,115 @@ At the moment only Linux/Unix makefiles are provided.
 2. Unit Tests: In the folder src/selftest  type `make -j$nproc`.
 
 
+
 ## A First Example
 
-Imagine that we want to replace every occurrence of *std::allocator* by *my_alloc* in an arbitrary type *X*. The problem is solved in three steps.
-
-
-*First step:  the algorithm.*   We replace *source* with *target* in a symbolic expression *term*.
-
-```
-constexpr auto code =
-
-R"( def subst  [ source target term ]
-        
-    (   if  ( eq term source )
-
-        target
-
-        (   if  ( irreducible term ) 
-
-            term
-
-            ( cons  ( subst source target (first term) )
-                    ( subst source target (drop_first term) )
-            )
-        )
-    )
-)"_s;  // _s is a literal operator that generates a template from this code.
-```
-
-
-*Second step: the navigator.* We collect everything we need in a navigator.
+Imagine that we have a class template called *my_alloc* and that we want to replace every occurrence of *std::allocator* by *my_alloc* in an arbitrary type *X*. This problem is solved by the following metaprogram:
 
 
 ```
 template<  typename Type
-        ,  typename Old_Type
-        ,  typename New_Type
-        >
-using nav = typename
-lt::navigator<  lt::parameter<     "x"_s,  Type  >
-             ,  lt::parameter<  "from"_s,  Old_Type  >
-             ,  lt::parameter<    "to"_s,  New_Type  >
-             ,  lt::parameter< "subst"_s,  decltype(code)  >
-             >;
-```
+        ,  template< typename > class Old_Alloc
+        ,  template< typename > class New_Alloc
+        ,  auto closure  =
+            map{  lt::assign< "from"
+                           ,  lt::class_template< Old_Alloc > >
+              ,  lt::assign<   "to"
+                           ,  lt::class_template< New_Alloc > >
+              ,  lt::assign< "term"
+                           ,  Type >}
 
-The details are not important here. We only need to observe that the navigator makes the types visible to the interpreter by creating symbolic representations of type  and binding them to name.
-
-*Third step: Run the interpreter.* 
-
-```
-template<  typename Type
-        ,  typename Old_Type
-        ,  typename New_Type
         >
 using replace =
-lt::ts::cpp< 
-    typename nav< Type,  Old_Type,  New_Type >
-    template eval< " ((` 'subst)  (` 'from)  (` 'to) (` 'x)) "_s
+lt::eval< R"({  ;  Recursive function for the 
+                ;  reursive replacement of subterms,
+                ;  defined in Trivium Lisp
+
+                ( def subst  [ from to term ]                                  
+                (   if  ( eq term from )
+                    target
+                    (   if  ( irreducible term ) 
+                        term
+                        ( cons  ( subst from to (first term) )
+                                ( subst from to (drop_first term) )
+                        )
+                    )
+                )
+
+                ;  Apply the function to arguments from the closure:
+
+                (@'C++ ( subst ( @'Symbolic @'term )  ( @'Symbolic @'from )  (@'Symbolic @'to ) ))
+             })"
+        , closure  // connect type parameters to the metaprogram 
 >;
 ```
 
-In the code above the interpreter returns a symbolic expression that denotes a C++ type. This C++ type is generated from the symbolic expression with the help of the class template lt::ts::cpp.
+If for instance we encounter a class X with a member function type  
+```
+    T = std::vector<int> (X::*)(double,  std::vector<double>) &&,
+```
+then `replace< T, std::allocator, my_alloc >` evaluates to the desired type
+```
+    std::vector<int, my_alloc<int>> (X::*)(
+                          double, std::vector<double, my_alloc<double>) &&.
+```
+
+In the example we can see the all three layers of Trivium in action:
+1. `lt::eval` is the interpreter that evaluates a Trivium Lisp program. It takes two arguments, a metaprogram in Trivium Lisp and a map that acts as a symbol table. 
+2. Symbols are mapped into C++-types with a compile-time map. 
+3. In this way we build a closure that connects our metaprogram to the C++ types that we want to process. The expression `(@'Symbolic x)` returns a symbolic representation of a C++ type that is bound to a variable `x`, whereas the expression `(@'C++ x)` translates a symbolic representation of a C++ into the actual C++ type that is represented. This is usually the end result of a metaprogrammatic computation.
 
 
-
-Now we can test the validity of the result:
+Consider the expression 
 
 ```
-#include <vector>
-#include <type_traits>
-
-using namespace std;
-
-// alias to keep nested type names sufficiently short
-template<  typename...  >
-using v = vector< X... >; 
-
-
-template<  typename X  >
-struct my_alloc : allocator<X> { };
-
-
-// A complex type:
-using T =  v<int>  (foo::*)( v< v< int> > ) volatile&& noexcept
-
-struct foo;
-
-
-using result  =
-replace<  T
-       ,  lt::class_template< std::allocator >
-       ,  lt::class_template< my_alloc >
-       >;
-
-
-using expected  =
-
-v<int, my_allocator<int>> 
-(foo::*)( v< v<int,  my_alloc<int>>
-           , my_alloc<v< int, my_alloc<int>>>> ) volatile&& noexcept;
-
-
-static_assert(  std::is_same_v<  result, expected >  );
-
-int main() {}  ;
+(@'C++ ( subst ( @'Symbolic @'term )  ( @'Symbolic @'from )  (@'Symbolic @'to ) )).
 ```
+
+It is evaluated in three steps:
+
+1. We compute the symbolic representations of the arguments `@'term`, `@'from` and, `@'to`
+2. We call subst on these representations
+3. We extract the actual C++ type that is symbolically represented by the result of subst
+
+
+
+### Limits of the Symbolic Representations
+
+The symbolic representation of the C++ typesystem has limits. It is possible to to decompose every type `T` that is not identical with std::decay_t<T> into subtypes. Furthermore, it is also possible to decompose instantiations of template classes of the form 
+```
+    template<  typename... > class x.
+```
+But instances of template classes that either contain template template parameters or non-type parameters cannot be broken up into components. 
+
+If introspections for for instantiations of such template classes are needed, then they need to provide some handcrafted code to deal with it. This restriction may change when C++26 is adopted. 
+
+In the above example we would not be able to deal with a class template like  `template< auto > struct foo {}`.  
+
+The type  
+```  
+replace<  foo< static_cast< std::allocator<int>* >(nullptr) >
+       ,  std::allocator
+       ,  my_alloc  
+       >
+``` 
+would be identical with the original 
+`foo< static_cast< std::allocator<int>* >(nullptr) >`.
+
+
+
+### The Role of the Symbol @
+
+We have ssen that the evaluator for Trivium Lisp takes to arguments, a metaprogram and a map that acts as a symbol table for the enclosure of prog.
+
+For a Trivium Lisp expression `expr` that evaluates to a string (sequence of characters) x, the expression `@expr` evaluates to the value `x` in the symbol table. If we attempt to evaluate `@expr` and `x` has no entry in the symbol table, then a compilation error arises. If `expr` is a name, then we need a program whose only action it is to return the name `expr`. In all lisp dialects we write `'expr`. This process is called *quoting*.
+
 
 
 ### Data and Algorithms in Template Metaprogramming
 
 In contemporary publicly known template metaprogramming code we often encounter two possible problems: Either we witness a complete absence of a separation between algorithms and data, or the interaction between algorithms and data is too cumbersome. 
+
 An example for the first problem can be seen in the following definition of the factorial map:
 
 ```
@@ -176,13 +188,21 @@ def f [n] {  if (n = 0) return 1  else return n * f(n-1) }
 The if-condition in the pseudo-code is realised only implicitly through a template specialisation in the C++-code. This is not good of course, because we always want to have something like an if-condition stated explicitly.
 
 Note that we could have chosen to carry out a compile-time computation with values instead of types to improve the readability:
+
 ```
-constexpr int f(int n) { 
-    if constexpr (n == 0)  return 1;  
-    else return n * f(n-1);
+constexpr int f(int n) 
+{ 
+    if constexpr (n == 0)
+    { 
+    		return 1;  
+    	}
+    else 
+    {
+	    return n * f(n-1);
+	}
 }
 ```
-This approach, taken for instance by Boost Hana, is unproblematic, when small inputs are processed by compilers. But for contemporary C++ compilers processing values is far more expensive than processing types. The template class instantiations that arise under the hood, for instance when recursive Trivium Lisp functions  with several variables are processed, can be so large that the value based approach becomes too expensive or even unfeasible because of a massive slowdown and huge memory consumption. Trivium keeps dealing with values to an absolute minimum.
+This approach, taken for instance by Boost Hana, is unproblematic when small inputs are processed by compilers. But for contemporary C++ compilers processing values is far more expensive than processing types. The template class instantiations that arise under the hood, for instance when recursive Trivium Lisp functions  with several variables are processed, can be so large that the value based approach becomes too expensive or even unfeasible because of a massive slowdown and huge memory consumption. Trivium keeps dealing with values to an absolute minimum.
 
 
 
@@ -210,8 +230,8 @@ template< typename X >
 using y = 
 typename
 std::conditional_t<  std::is_integral_v<X>
-                   ,  template_<f>
-                    , tmeplate_<g>  >::template apply_to<X>;
+                   ,  lt::class_template<f>
+                    , lt::class_template<g>  >::template apply_to<X>;
 ```
 
 
@@ -226,52 +246,59 @@ If we attempt to instantiate y<double>, then logically we want to discard f<X> a
 
 In Trivium-Lisp the metaprogram-code would look as follows:
 
-```
-// Wrapper for std::is_integral
+First we need a wrapper for std::is_integral that returns a symbolic type for true or false depending the result of std::is_integral_v:
 
+```
 template< typename T >
 using Is_Integral = 
-typename std::conditional_t<  std::is_integral_v<T>, decltype("true"_s),  decltype("false"_s)  >;
+typename std::conditional_t<  std::is_integral_v<T>, s_expr<"true">,  s_expr<"false">  >;
+```
 
 
-// The navigator
-
-using nav =
-lt::navigator< lt::parameter< "is_integral"_s,  lt::combinator<1, Is_Integral > >
-             , lt::parameter< "f"_s          ,  lt::class_template<f> >
-             , lt::parameter< "g"_s          ,  lt::class_template<g> >
-             , lt::parameter< "x"_s          ,  x  >
-             >;
+Then we can compute the desired class template:
 
 
-// run interpreter
-
+```
 template<  typename X  >
-using result =  lt::ts::cpp< // template to transform a symbolic result to a C++ type
+using result =  
+lt::eval<  
 
-    // The metaprogram
+    "(  @'C++ ( list 'class_template ( if (@'is_integral @'x)  @'f  @'g ) @'x  ))"
 
-    typename nav::template 
-    template eval<"(  if ( (` 'is_integral) (` 'x) )  ; test with is_integral  
-                         ('class_template (` 'f) (` 'x))    ; if yes return f<x> (in symbolic form)
-                         ('class_template (` 'g) (` 'x))    ; if no return g<x>  (in symbolic form)
-                   )"_s >
+    ,  map{  lt::assign< "f",  lt::class_template<f> >
+          ,  lt::assign< "g",  lt::class_template<g> >
+          ,  lt::assign< "x",  X  >
+          ,  lt::assign< "is_integral",  lt::combinator<1, Is_Integral>  >
+          }
 >;
 ```
 
 We see that no indirection is needed. The symbolic representations of `f<x>` and `g<x>` are present, and the one not chosen is being discarded before an instantiation takes place. The Trivium-Lisp if statement is, like all of its other functions, as lazy as possible.
 
 
+Of course in this small use case, which is of little complexity, the traditional approach with `std::is_integral_v` fares better than the solution with Trivium, because there is almost no algorithmic complexity in the computation involved. The effort of spelling out the closure and writing a wrapper for std::is_integral outweighs the disadvantage of the clumsy construction with apply_to. However the algorithmic component of TMP code is only modestly complex, then Trivium fares far better.
+
+
+For example, let us assume that we want to select all the types that are integral from the parameter pack of an instantiated type `struct f< xs... >` and then apply `f` to the resulting sub-parameter pack. For instance `f<int, double, short>` would be transformed into `f<int, short>`. This is done easily with a library metafunction select that is written in Trivium Lisp:
+
+
+```
+template<  typename FX  >
+using result = 
+lt::with< lt::lib<"++">, lt::lib<"select">   >::
+cpp_eval<  "( ++  (take 2 @'fx)  (select @'is_integral ( drop 2 @'fx )) ) "
+            ,  lt::assign< "fx",  lt::symbolic<FX>
+            ,  lt::assign< "is_integral", lt::combinator<1, Is_Integral>  >
+```
+
+
+
+
 Another important point that makes template metaprogramming difficult is the complexity of the substitution scheme for template specialisations. Unexpected ambiguities or undesired substitutions may arise, whereas the evaluation scheme of Trivium Lisp is extremely simple and easily predictable.
 
-*A note on the length of the example:* A reader may object that the length of the Trivium example does not compare favourably to the length of the solution that does not use the library. But we should keep in mind that Trivium was designed for large and complex metaprograms, not for small examples. 
-The effort to write a navigator, which is mostly 4-10 lines long, has no weight when the metaprogramming problem to solve is complex. 
-If however a solution to a problem is only two 2-5 lines long, then the effort of writing up to 10 lines for a navigator is of course significant. The example given here only aims to show that the interaction between data and algorithms is cleaner in Trivium than it is in direct C++. Only the metaprogramming code matters in this context.
 
 
-
-# Achievements
-
+## Achievements
 
 0. Simplicity: Metaprogramming has been separated from the peculiarities of the type system of C++. Thus anyone who merely knows what a template is and either knows basic Lisp (without macros) or is willing to learn it can metaprogram with Trivium. Furthermore, the metaprograms are short, clean, with intuitive semantics and without the clutter of a cumbersome syntax that is typical for conventional template metaprograms.
 
@@ -296,14 +323,26 @@ Metaprogramming with symbolic expressions is by no means a novel idea, as it has
 
 
 
+## Outline of the Documentation
+
+1. Prerequisites from Symbolic Programming
+2. Symbolic Expressions
+3. Trivium Lisp
+4. The Symbolic Representation of the C++ typesystem
+5. Libraries of Trivium Lisp Functions
 
 
-# Trivium-Lisp
 
-## Homoiconic Symbolic Programming Languages
+# Prerequisites From Symbolic Programming.
+The Trivium Framework is founded upon the key ideas of symbolic programming. Hence we give a short but precise meaning to the notion of *symbolic expressions* and symbolic computing..
 
-A _symbolic expression_ with _symbolic atoms_ in a set S is a finite tree, whose leaf nodes are labelled with elements from S. Symbolic expressions are usually written as nested lists. For example when x y z are elements of S, then the expression `T:  (x (y z (a b) ) x)` denotes the following labelled tree:
 
+
+A *symbolic expression* with *symbolic atoms* is a finite tree, whose leaf nodes are labelled with elements from X. Symbolic expressions are usually written as nested lists. For example, when x y z are elements of X, then the expression 
+```
+    T:  (x (y z (a b) ) x)
+```
+denotes the following labelled tree:
 ```
         .
       / | \
@@ -313,410 +352,768 @@ T': x   .   x
           / \
          a   b
 ```
-Let S-Expr be the set of all symbolic expressions over symbolic atoms in S. We write S-Expr<sup>n</sup> for the set of n-tuples (x<sub>1</sub> ... x<sub>n</sub>) of expressions in S-Expr.  Furthermore, we write S-Expr<sup>* </sup> for the set of arbitrary finite tuples of symbolic expressions.
 
+The inductive definition: 
 
-A *symbolic programming language* is a programming language, whose programs denote transformations on symbolic expressions. A *homoiconic symbolic programming language* is a symbolic programming language whose programs and data are symbolic expressions over the same set of symbolic atoms, and which have the property that its semantics [[ ]]: S-Expr* --->  S-Expr  is given by a a partial map Eval:  S-Expr --->   S-Expr via the equivalence 
-
-[[ p ]](q<sub>1</sub> ... q<sub>n</sub>) = Eval(  (p q<sub>1</sub> ... <sub>n</sub> )  ).
-
-The identity is meant to hold in the symmetric sense that either both sides are defined and equal, or neither side is defined.[^2]
-
-Trivium Lisp, like ordinary Lisp, is a homoiconic symbolic programming language.
+1. Every object of X is an s-expression.
+2. For every (possibly empty) finite sequence q1 ... qn of s-expressions the term `p = (q1 ... qn)` is an s-expression, too.
 
 
 
+A *symbolic programming language* is a programming language, whose programs denote transformations on symbolic expressions. It is called a *homoiconic language* when its semantics is a partial map of the form 
 
-## The Semantics of Trivium Lisp
+```Eval:  Expr  --->  Expr, 	```
 
-The set of symbolic atoms of Trivium Lisp consists of the following items:
+where `Expr` is the set of symbolic expressions over symbolic atoms in a fixed set X.
 
-1. The empty list ();
-2. ascii-strings;
-3. C++ types.
-
-***Convention: We write C++ types in italics to distinguish them from strings.*** For instance the symbolic expression (*double* double) is a list of the C++ type double followed by the string "double".
-
-
-
-
-In the following description of the semantics "undefined behaviour" of a metaprogram means compilation failure. The behaviour of commands is sometimes given by equivalence relation of the form
-`equation 1 <=> equation 2` between two equations. Then, if neither equation 1 nor equation 2 holds, then the behaviour is undefined and thus a compilation failure is the intended behaviour. 
-
-On other occasions the behaviour is given by a single equation. Then the equality is meant symmetrically in the sense that the left-hand side exists if and only if the right-hand side exists.
-
-###  Constants:
-
-
-### true / false:
+If we evaluate a symbolic expression of the form `px = (p xs...)` by computing
 ```
-Eval( true ) = true
-Eval( false) = false
+q = Eval[ (p xs... )],
 ```
+then `p` can be understood as a program that is endowed with input values `xs...` . The output `q`, the program `p`, and the input values xs... have in common that they are all represented as symbolic expressions.
 
-Text constants that indicate truth and falseness.
+In short we can say that programs and data are identically represented: They are symbolic expressions.
 
-
-### The Empty List ():
-
-`Eval( () ) = ()`.
-
-
-### Elementary Operations:
-
-### quote (and '):
-`Eval( (quote x) ) = x.`  We write 'x as an abbreviation for (quote x).
-
-
-### list:
-Create a list. 
-```Eval(  (list xs... )  ) = ( Eval(xs)...)```
-
-Example:  (list 'x 'y 'z) evaluates to (x y z).
+This property is called *homoiconicity*. A programming langauge that satisfies the property of homoiconicity, such as Trivium Lisp, or any other common Lisp, is called a *homoiconic* programming language.
 
 
 
-### first:
-Return the first element of a list.
-```Eval(  (first z )  ) = x   <=>   Eval(z) = (x xs...)  for some xs... .```
+# Syntax and Semantics of Trivium Lisp.
 
-Example:  (first '(1 2 3)) evaluates to 1.
-
-
-
-###  drop_first:
-Drop the first element of a list.
-```Eval(  (drop_first z  )  = (xs...)  <=>  Eval(z) = (x xs...) for some x.```
-
-Example:  (drop_first '(x y z)) evaluates to (y z)
-
-
-### cons:
-Add an element at the front of a list.
-```Eval(  (cons  z  w) )  =  (x  xs...)   <=>  Eval(z) = x and Eval(w) = (xs...)  for some x xs... ```.
-
-Example:  (cons 'x '(y z)) evaluates to (x y z).
-
-
-
-### eval:
-Evaluate a string as a lisp program.
-```Eval(  (eval x)  ) =  Eval(Eval(x))```
-
-Example: 
+This chapter contains a descritpion of the semantics of Trivium Lisp. First we describe its set Expr of symbolic expressions by specifying its symbolic atoms. Then we give rules for computing the semantic map
 ```
-Eval(  '(first (list 'x 'y 'z))  ) =  (first (list 'x 'y 'z ) )
-Eval( ( eval 'first (list 'x 'y 'z ) ) ) = Eval( first (list 'x 'y 'z) ) = x.
+    Eval: Expr ---->  Expr.
 ```
 
 
-### apply:
-Apply a function to arguments given in a list.
-```Eval(  (apply p z )  ) = Eval(  (p xs...)  )  <=>  Eval(z) = (xs...).```
+## Symbolic Atoms
 
-Example:  (apply cons (list ( 'a '(b c))) evaluates the expression (cons 'a '(b c)). Thus the result is the list (a b c).
-
-
-
-### not:
+### Keywords
+The following ASCII-strings are reserved Trivium Lisp keywords:
 ```
-Eval( (not x) ) = true   <=>  Eval(x) = false
-Eval( (not x) ) = false  <=>  Eval(x) = true.
+apply    and    C++    cons    drop_first    eval    eq
+first    if    irreducible    not    or    requires
+symbolic    xor    true    false
+==    !=    <    <=    >    >=    +    -    *    /    %
 ```
-If x evaluates neither to true nor to false, then the result is undefined.
+We assume that these strings be not zero-terminated.
 
 
 
-### and / or / xor:
-```(and x y) / (or x y) / (xor x y)```
+### Number Literals
+A string is called a number literal if it is a C++ integer literal that contains no integer suffix.
 
-Undefined behaviour if either x or y does not evaluate to one of the symbolic constants true/false.
-Otherwise  Eval(  ( *op* x y )  ) =  Eval(x) *op*  Eval(y).
+(For instance `0xa` is a number literal in Trivium Lisp, but `1ul` is not).
 
 
-Example:  
+We assume that number literals are not zero-terminated.
+
+
+### Identifiers
+
+An identifier is an ASCII-string with the following properties:
+
 ```
-(and true false) evaluates to false
-(and 0     1)    yields a compilation error.
+1. It does not contain any whitespace symbol  (' ', '\t', '\v', '\f', '\r', '\n')
+
+2. It is not a proper prefix of a C++-number literal.
+
+3. It starts with none of the symbols [ ( { @ '
 ```
 
 
 
-### requires:
-`(requires cond x)` evaluates to `Eval(x)` whenever `Eval(cond) = true`. Otherwise undefined behaviour.
+### Atomic Expressions
 
+An *atomic expression* in Trivium Lisp is one of the following:
 
-
-### eq:
-`(eq x y)` evaluates to the symbolic constant "true" when  `Eval(x)` and `Eval(y)` are identical; 
-otherwise it returns to the symbolic constant "false".
-
-
-### if:
-```
-Eval( (if cond x y) )  =  Eval(x) when cond evaluates to the symbolic constant "true",
-Eval( (if cond x y) )  =  Eval(y) when cond evaluates to the symbolic constant "false"
-Eval( (if ocnd x y) )  =  undefined otherwise.
-```
-
-Note that always at only one of the branches x y is evaluated.
-
-
-
-### lt::combinator<n, F>:
-
-Pick a list of n expressions xs... : If these expressions evaluate to C++ types *Xs*... and if the template instantiation *F<Xs...>* exists, then  ( _combinator<n, F>_ xs... ) evaluates to *F<Xs...>*. Otherwise undefined behaviour form the input xs... .
-
-
-### lt::navigator< Xs...  >
-Trivium ocntains the following class template that plays a special role:
-```
-namespace lt { template<  typename...  > class navigator; }
-```
-
-Semantics of navigators:
-
-Eval(  ( *lt::navigator< Xs... >*,  q  )  ) = lt::navigator::lookup<  *Q*{}  >   <=>   Eval(q) = *Q*    for expressions q and a types *Q*.
-
-
-This is merely a formal definition. A thorough discussion of its meaning will be given in the section on navigators.
-
-
-### == / != / < / <= / > / >=:
-
-(  **op**  x  y ) with **op** in (== / != / < / <= / > / >=). 
-
-
-Trivium contains the following class template that plays a special role::
-```
-namespace lt {  template< auto > struct value { } };
-```
-
-If x and y are expressions that evaluate to *lt::value<v_x>*  and *lt::value<v_y>*, then ( __op__ x y )
-evaluates to the symbolic string true / false if and only if the C++ expression *val_x* __op__  *val_y*  evaluates to the boolean value true / false. Otherwise the behaviour is undefined.
-
-
-### + / - / * / / / %:
-
-( **op**  x  y ) with _op_ in ( + / - / * / / / % ). 
-
-The expression is evaluable if x and y are expressions that evaluate to *value<v_x>*  and *value<v_y>*.
-Then the expression evaluates to the C++ type *lt::value< val_x __op__ val_y >*. Otherwise the behaviour is undefined.
-
-
-
-### Anonymous Functions:
-A  string x shall be called a *formal variable name* if it does not contain any of the letters (,),[,],{,}, and if it does not start with any of the letters ' or 0-9.
-
-For Trivium Lisp Expressions p, q, and a formal variable name x we define the expression p[q/x] as the expression that arises when every occurrence of x in p is replaced by q.
-Example:  (* 2 x)[3/x] is the expression (* 2 3).
-
-For every Trivium Lisp expression p and every formal variable name x, the language selects an expression [x]p with the property that for every Trivium Lisp expression q the expressions 
- `([x]p q)` and   `p[q/x]` evaluate to the same result.
-
-For a non-empty list of variables names xs... and a variable x such that the variables in the list `xs..., x ` are pairwise different, an expression  [xs... x]p is chosen inductively via the identity
-`[xs... x]p = [xs...][x]p`.
-
-
-Examples:  
-```
-1. [x]x is the identity map.
-2. `[x y] ( (+ (*x x) y)). This expression encodes the function which maps (x, y) into x^2 + y.
-```
-
-
-### Definitions: (def f p q)
-
-The parameter f needs to be a formal variable name. `(def f p q )` has the same result as an evaluation of `(p [q/f])`
-
-
-Example:  (def  f  [x y](+ (* *value<2>* x) y)  (f *value<3>*  *value<4>* )  )  results in *value<10>*.
-
-**Recursive definitions** are admissible: For instance the following code computes the factorial 3! = 6:
-
-(def f [x] (if (eq *value<0>* x ) *value<1>*  (* x (- x *value<1>*))) (f *value<3>*))
-
-
-*Nested definitions* are also possible: For instance the inner f in `p: (def f [x](* 2 x)(  f (def f 3 3) ))`  does not collide with the outer f. 
-But nested definitions are subject to a restriction that is explained in the section on Currying that follows.
-
-
-
-### Currying 
-We assign an arity to every elementary operation that we have described except for the operation "list":
-
-```
-Arity 1:  quote, first, drop_first, eval, not;
-Arity 2:  cons, apply, and / or / xor, requires, eq, + / - / * / / / %, navigator<Xs...>;
-Arity 3:  if, def
-```
-
-```
-Operations of varying arity n:  combinator<n, F>   with a fixed template class template< typename... > class F.
-```
-
-
-If an elementary operation op has the arity n, then for any non-empty list of expressions xs...  with `< n` elements we let
-
-```Eval( ( op xs... ) ) = (op xs...).```
-
-
-If an elementary operation op has the arity n, and we are given a list xs... with n elements and another nonempty list ys...  of arguments,
-then we let 
-
-```Eval( op xs... ys...) =  Eval(  Eval(op xs...) ys... )```
-
-*Currying in definitions*:  [ Missing ]
-
-
-### Nested Expressions
-
-For symbolic expressions x and non-empty lists of symbolic expressions xs..., ys...  the evaluation of the term ((x xs...) ys... ) is realised via the equation
 ``` 
-Eval(  (( x xs...) ys... )  )  =  Eval( x xs... ys...)
+(a) A C++-type.
+
+(b) The empty expression ().
+
+(c) A keyword, a number literal, or an identifier.
+
+(d) A symbol Y* that is neither an ascii-sequence nor any of the other symbols defined in (a)-(c)
 ```
 
 
-## The C++ Type Associated With a Symbolic Expression
 
-There are three class templates that are used to represent symbolic expressions as C++ types:
+## The Semantics of Elementary Trivium Lisp Expressions
+
+
+### Constants
+We let
+
 ```
-namespace lt {
-
-    template<int n>          struct list;
-
-    template< auto >         struct value;
-
-    template< typename... >  struct s_expr;
-
-    template< char... >      struct text;
-};
+Eval [ x ]  = x
 ```
-The instantiations of these class templates are literal types. Thus objects whose types instantiate them can be non-type template parameters. For example `lt::value< lt::s_expr<double, lt::text<'a'>>{} >` is a valid instantiation of  lt::value.
 
-1. An ascii string  of the form x<sub>1</sub>...x<sub>n</sub>  represents the type lt::text< x<sub>1</sub>, ..., x<sub>n</sub> >, unless it is an integer literal;
-2. An ascii string that is an integer literal  (either binary, octal, decimal, or hexadecimal) denoting an integer n is represents the type lt::value<(int)n>
-2. The expression (xs...) represents the type s_expr< Xs... >, with Xs the C++ types represented by xs.
-3. The expression (list xs...) represents the type s_expr< list< sizeof...(xs) >,  Xs... >, with Xs... the C++ types represented by xs... .
-4. A C++ type *T* represents itself.
+when `x` is one of the following expressions:
 
-A few examples:
-
-1. hello represents lt::text<'h','e,'l','l','o'>
-2. -0xA  represents lt::value< (int)-15 >
-3. *double* is represented by the type *double*
-3. ()       is represented by the type lt::s_expr<>
-4. (first (list a b c)) represents the type  lt::s_expr<  text<'f', 'i', 'r', 's', 't'>,  lt::s_expr< list<3>, text<'a'>,  text<'b'>, text<'c'>  > >.
-
-
-
-It is not relevant whether we see a symbolic expression as a string (with letters in the ascii-alphabet and  C++ type system) or as a C++ type, because the correspondence between them is unique. It is merely a matter of notation. 
-
-
-**From now we consider symbolic expressions to be mere notations that specify C++ types in accordance with the rules we have just given.**
-
-
-
-### lt::operator""_t,  lt::operator""_s
-The operator ""_t transforms a C-string str of length n to the type lt::text< str[0], str[1], ... , str[n-1] >, with the \0-terminator excluded.
-
-
-The operator ""_s generates a symbolic expression from a C-string at compile-time.
-
-Examples:  
-
-1.  `"(head (list 1 2 3))"_s` generates the C++ type lt::s_expr< list<3>,  lt::value<1>,  lt::value<2>,  lt::value<3>  >.
-2.  `"[x](* 2 x)"_s` generates an expression q with `Eval(q[w/x]) = Eval((* 2 w)) = Eval(lt::s_expr< text<'*'>,  lt::value<(int)2>, W >)` for a suitable type *W*. 
-
-In the last example we have used the convention that symbolic expressions be notations that specify C++ types. The exact types of w and W are not important. Only the fact that the identity  Eval(q[w/x]) = Eval((* 2 w)) holds is of importance.
-
-
-# Navigators
-
-The Trivium Lisp interpreter is called by instantiating the class template ```template< auto const > eval```. 
-
-Example:  using result = eval<"([x](* 2 x) 3)"s>; The type result is lt::value<(int)6>. 
-
-Trivium metaprograms can either be specified as the C++ types that represent the symbolic expressions with the source code, or they can be specified as compile-time strings with the ""_s-operator. The compiler sees the same thing, but the human developer deals far better with strings.
-
-Thus we should (almost) always specify metaprograms with strings. For this to happen we need a method to symbolise C++-types in strings. This can be done with the help of navigators. A symbol is attached to a type name with the help of the following class template:
 ```
-namespace lt {  template<  auto const symbol,  typename T  >  struct parameter;  }
-```
-Such attachements are gathered and made accessible to interpreters in a class template called navigator:
-```
-namespace lt {  
-    template<  typename...  >  struct navigator;
+a) a keyword;
 
-    template<  auto const...  symbols
-            ,  typename...    Xs
-            >
-    struct navigator<  parameter< synmbols, Xs >...  >;
+b) an identifier;
+
+c) a number literal
+
+d) the empty list nil = ()
+
+
+e) One of following C++-types and 
+   instantiations of the following template 
+   that are defined in the framework:
+
+
+namespace lt
+{
+	struct S;
+	struct K;
+
+	template<  auto N,  template< typename... > class >
+	struct combinator {};
+	
+	
+	template<  typename...  > 
+	class map
+	{
+		...;
+	};
+	
+	
+	template<  auto  >
+	struct list {};
 }
-
-```
-Note that the symbols in the parameter pack *symbols...* are unique.  If not, the compilation will fail.
-
-
-Navigators contain a type alias `template< auto const s > using lookup = ... `.
-
-The type 
-```
-    typename navigator< parameter<symbols, Xs... >...  >::template lookup< s >
-```
-is the unique type X, if it exists, with the property that parameter<s, X> is contained in the parameter pack  *parameter< symbols, Xs >...* . If such a type cannot be found in the pack, then the compilation fails.
-
-
-
-The Trivium Lisp interpreter can be called from a navigator:
-
-```
-template<  typename program  >
-using nav_eval =
-
-template<  auto const... s
-        ,  typename...   X
-        >
-struct navigator<  parameter< s, X >...  >::template eval<program>;
 ```
 
 
-The interpreter call nav_eval<"\`"_s>  results in the type navigator< lt::parameter<s, X>... >.
+### Quotations
+```
+Eval[ (quote x)  ]  = x
+```
 
-Applying the semantics of navigator instructions in Trivium Lisp, we can access a symbol z with the expression nav_eval<(\` z)>, which is identical with the unique *Z* such that *parameter<z, Z>* is contained in *parameter<s, X>...* .
+
+The command "quote" is very important. Its purpose is to interpret every symbolic expression `x` as the program `return the expression x`.
+
+
+We use the following abbreviation in Trivium Lisp that is common in all Lisp dialects:
+```
+
+			'x :=  (quote x).
+```
 
 
 
-Example:
+### Elementary List Commands  (list / cons / first / drop_first)
+
+
+A letter `p...` followed by three dots shall denote a possibly empty sequence of expressions.
+
 
 ```
-template<  typename X  >
-using sizeof_t = lt::value<  sizeof(X)  >;
-
-using result = 
-    lt::navigator<  lt::parameter< "size",     lt::combinator< 1, sizeof_t >  >
-                 ,  lt::parameter< "integer",  int  >
-                 ,  lt::parameter< "double",   double  >
-                 >::
-    template eval< "(if (eq ((` 'size) (` 'integer)) 8)  (` 'double) (` 'int) )"_s >;
+Eval[  (list p... ) ]      =  ( Eval(p)... ). 
 ```
-The code above associates the result type *double* to *result* if the type *int* has the size 8. Otherwise it associates the type *int* to *result*.
-
-# Libraries written in Trivium-Lisp
-[ coming soon ]
+This includes `Eval[ (list) ] = ()` as a special case.
 
 
-## The Linker
-[ coming soon ]
+Let x, xs, h, t... be s-expressions:
+
+```
+Eval[  (cons x xs ) ]       =  CONS( Eval(x)  Eval(xs) )
+
+with CONS given by
+
+CONS( h (t...) ) = (h t...)
+CONS( h w )      =  -undefined- when w is not a list of the form (t...).
+```
 
 
-# The Symbolic Representation of the C++ Type System
-[ coming soon ]
+```
+Eval(  (first xs ) )       =  FIRST( eval(xs) )
 
-### Footnotes
+with FIRST given by
 
-[^1]: Normally being domain-specific and being Turing-complete are mutually exclusive properties, but here the situation is different: Trivium-Lisp is specific to the domain of computing at compile-time in contrast to C++, which is general in the sense that it supports computing both at compile-time and at runtime.
+FIRST[ (h t...) ] = h
+FIRST[ w ] = -undefined- when w is not a list of the form (h t...).
+```
 
 
-[^2]: The notion of homoiconicity is used very informally. It is always required for a symbolic language to be called homoiconic that programs have the same representation as symbolic expressions as data and that the language shall treat code as data, making it naturally apt for metaprogramming. The definition of homoiconicity given here is very exact, but the reader be warned that the gaps left by the informal use of the notion have been filled with an exact formula on the semantics that is not generally agreed.
+```
+Eval(  (drop_first xs ) )       =  DROP_FIRST( Eval(xs) )
 
+with DROP_FIRST given by
+
+DROP_FIRST[ (h t...) ] = (t...)
+DROP_FIRST[ w ] = -undefined- when w is not a list of the form (h t...).
+```
+
+
+
+### eval
+The eval command enforces the evaluation of a symbolic expression.
+```
+    Eval[  eval(x) ] = Eval[ Eval[x] ]
+```
+
+We give an example:
+
+```
+    Eval[ (list 'head '(1 2 3))] = ( head ( 1 2 3 ) ).
+    Eval[ (eval ( list 'head '(1 2 3) ) ) ]  = 1
+```
+
+
+### apply
+The operator apply evaluates a function on arguemnts given in a  list.
+```
+Eval[ (apply f xs ) ] = APPLY( Eval(f),  Eval(xs) )
+
+APPLY( f, (xs...) )  = (f 'xs...))
+APPLY( f, w )  = -undefined- when w is not a list of the form (xs...).
+
+```
+
+
+### Equality Test eq:
+```
+Eval[ (eq x y) ] = true  whenever Eval[x] and Eval[y] are identical.
+Eval[ (eq x y) ] = false whenever Eval[x] and Eval[y] are not identical.
+
+If either Eval[x] or Eval[y] is not defined, then (eq x y) is not defined either.
+```
+
+
+### Boolean Operators
+
+```
+(not x)
+(and x y)
+(or x y)
+(xor x y)
+```
+
+The evaluation of the expressions above is defined if and only if x and y are expressions that evaluate to either true or false. The return value of Eval is then either true or false in accordance with the standard boolean comparisons.
+
+Note that expressions like `(and 1 1)` or `(and 1 true)` are not admissible, because 1 does not evaluate to the string "true" or  to the string "false".
+
+
+
+### Assertion Of A Condition: requires
+The requires command  asserts a condition. If the condition is broken, the code will not compile.
+
+```
+Eval[(requires cond x)] = Eval[x]
+```
+if and only if `Eval[cond] = true`, otherwise the evaluation is undefined.
+
+
+We give two examples:
+
+```
+    (requires (eq 3 4) 0 )  is undefined.
+    (requires (eq 3 3) 0 )  evaluates to 0.
+```
+
+
+### The Conditional Statement if
+
+Pick three expressions `cond, p, q` Then `Eval[(if cond p q)]` is defined if and only if one the following conditions holds:
+
+```
+Either  (a) Eval[cond] evaluates to true  and Eval[p] is defined
+or      (b) Eval[cond] evaluates to false and Eval[q] is defined.
+```
+Then we witness
+```
+Case a:  Eval[(if cond p q)] = Eval[p].
+Case b:  Eval[(if cond p q)] = Eval[q].
+```
+
+
+
+### The Keywords C++ and Symbolic:
+
+```
+Eval[ (C++ x) ]
+```
+
+gives the C++ representation of an symbolic exprssion `x` that encodes a C++ type.
+
+```
+Eval[ (Symbolic X) ]
+```
+gives a symbolic representation of a C++ type `X`.
+
+
+The encodings of C++-types as symbolic expressions and their decodings together with the exact semantics of the keywords `C++` and `Symbolic` are discussed in the chapter on the representation of the C++ type system.
+
+
+
+
+### The Class Template lt::combinator<n, F>
+
+The framework contains the type
+```
+namesapce lt
+{
+	template<  int n,  template< typename... > class F  >;
+}
+```
+
+
+
+Assume that p... consists of n expressions.
+
+```
+Eval[ ( lt::combinator< n,  F >, p... ) ] =  F<  Eval[p]... >;
+```
+
+
+If one of the result `Eval[p]` is not a C++ type or not defined, then the evaluation above is not defined.
+
+
+
+### The Class Template lt::list<n>
+
+The framework contains the class template
+
+```
+namespace lt
+{
+	template< int n > struct list {};
+}
+```
+
+We give a sequence p... of symbolic expressions.
+
+```
+Case 1: p... contains n expressions.
+
+	Eval[ ( lt::list<n> p... ) ]  =  ( Eval[p]... )
+
+
+Case 2: p... contains fewer than n expressions
+
+	Eval[ (lt::list<n> p... ) ] = ( lt::list<n>, p... )
+
+
+Case 3: p... contains more than n expressions
+
+	Eval[ (lt::list<n>  p...)  is not defined.
+```
+
+
+
+
+### The C++-Types lt::S and lt::K 
+
+```
+Eval[ (lt::S x y z) ] =  Eval[ (x z (y z) )]
+Eval[ (lt::K x y) ]   =  Eval[ x ]
+```
+
+These operators may appear obscure to a reader who is unfamiliar with combinatory logic. They are in fact never directly used by a programmer. They are intermediate auxiliary items to allow for  an internal representations of functions.
+
+We give a simple example. The identity map for can be represented by the expression `( lt::S, lt::K, lt::K)` in the sense that for an arbitrary expression x we witness
+
+```
+Eval[ (lt::S, lt::K,  lt::K x ) ]       =
+Eval[ (  lt::K  x  (  lt::K  x  )  ) ]  = 
+Eval[x].
+```
+
+
+
+## The Command Y*
+
+The atomic symbol Y* is not meant to be used by a programmer directly. It is a mere auxiliary tool to enable recursive functions. It is, as we shall discuss later, implicitly present in recursive code.
+
+We give the meaning
+```
+Eval[ (Y* f x) ] = Eval[  f (Y* f) x)  ].
+```
+
+
+
+
+### Substitutions and Definitions
+
+Fix two elementary Trivium Lisp expressions p, q and an atomic elementary Trivum Lisp expression x. We write  <q/x>p for the unique expression that arises by replacing every occurrence of x in p by q. We call the operation <q/x> the *substitution* of `x` by `q`.
+
+```
+<q/x>p = q                           for p atomic with p = x.
+<q/x>p = q                           for p atomic with p != x.
+<q/x>p = ( <q/x>r0, ... , <q/x>rn )  for p = (r0, ...,  rn).
+```
+
+
+If `c: Expr --->  { true false }` is a (partially defined) condition on expressions, then  we give the *conditional substitution* `<x/q/c>` of `x` by `q` under the conditon `c` by the following identities:
+
+```
+<q/x/c>p undefined for c(p) undefined
+
+<q/x/c>p = p  for c(p) = false
+
+<q/x/c>x = q  for  c(x) = true
+<q/x/c>y = y  for y atomic and different from x
+
+<q/x/c>( r0 .... rn )  = (  <q/x/c>r0  ... <q/x/c>rn  )
+```
+
+
+
+Assume that `f` is an identifier and that `p` and `q` are arbitrary expressions. 
+
+We give a condition  `no_name_clash<f>: S-Expr --->  S-Expr:
+
+
+If `p` is an expression of the form `p = (def f r...)`, then this will have the meaning that the current meaning of `f` will be replaced. We have a name clash here and thus we let `no_name_clash<f>[ p ] =  false`. In all other cases we let `no_name_clash[p] = true`.
+
+
+We describe the intended meaning `expr = (def f p q)`  has the following meaning:
+
+1. Associate the expression `p` with the name `f`
+2. Replace every appearance of f in q with the expression p, but do not overwrite a local inner definition of `f` if one arises.
+
+A naive specification would read as
+
+```
+Eval[ (def f p q ) ] = Eval[  < p / f / name_clash<f> >q ].  
+```
+
+
+Such a specification however would not allow us to write recursive functions, where f appears in p. For this to happen we need an expression y*(p; f) that takes the role of a fixed point operator. We discuss this later. For now it suffices to say that we specify
+
+```
+Eval[ (def f p q ) ] = Eval[  < y*(p;f) / f / name_clash<f> >q ].
+```
+
+We also note that y*(p;f) will be picked to coincide with p when f does not appear in p.
+
+
+
+## Lazy Evaluation and Currying
+
+We have hitherto given the semantics of operations `op` through equations of the form
+
+```
+	Eval[ (op p... ) ]  = something.
+```
+We shall the number of arguments in p... the *arity* of op. For instance the command `first` has the arity 1: When we give it one argument xs, then xs will be evaluated, and then the first element of the resulting list will be returned. 
+
+
+The operator `if` has the arity 3. A complete if-expression has the form `(if cond alternative_1 alternative_2)`
+
+
+Only for the the command `list` we cannot define an arity, because the number of elements a list takes is not fixed.
+
+
+
+### Rule On Incomplete Expressions
+
+
+We shall allow to bind less than the number of arguments given by the arity of a command to it. 
+
+Then the evaluation will be chosen to be lazy in the sense that the arguments are kept unevaluated until we bind all the remaining arguments for  to reach the arity of the operator. We see this strategy spelled out in the following rule.
+
+
+Let `op` be a command of arity `n`.
+
+If  `p...` is a list of expressions with less then n arguments and `x` is an arbitary expression, then we let
+```
+Eval[ (op p... ) ]  =  ( op p... )
+		
+and
+	
+Eval[ ((op p... ) x ) ]  =  Eval[( op p... x ) ].
+```
+		
+		
+We add a restriction to the rule above for the operator def:
+
+```
+   The def operator shall never be given just one one argument. 
+   It takes at least two arguments.
+ ```
+ 
+Expressions like `(def f x)` or `(def f x p)` legal, but something like `(def f)` is not.
+
+Furthermore we reiterate that, in accordance with the definition of def, the term `f` cannot be an arbitrary expression, but it must always be an identifier.  For instance the expression `(def (first  (list 'f 'g) 'hello )` is not an evaluable Trivium Lisp program.
+ 
+ 
+An expression like '(def f x )' evaluates, as expected, to itself
+ ```
+   		Eval[(def f x)] = (def f x).
+ ```
+ 
+
+
+*IMPORTANT NOTE*:  The `list` command has no arity.  Hence it is excluded from the rule of incomplete expressions. We give an example:
+
+The expression `((list 1 2 3) 4)` does not evaluate to (1 2 3 4). Instead the evaluation leads to  the evaluation
+```
+    Eval[ (( list 1 2 3) 4) ] = Eval[ (1 2 3) 4 ] = *undefined*.
+```
+
+
+
+### Rule on Nested Expressions:
+
+If p... and q... are non-empty lists of expressions, we let
+```
+	Eval[ (p... (q... )) ]  =  Eval[ Eval[(p...)]  Eval[(q...)] ].
+```
+
+
+### Currying
+
+The rule on incomplete expressions and the rule on nested expressions have an important consequence. Every program except for `list` and symbolic atoms that evaluate to themselves, like `3` or `()`, can be understood as having only one input value. Consider for instance the expression `p = (cons 2 '(3 4)')`.
+the command `cons` takes the input `2` and returns the program `(cons 2)`. `(cons 2)` is a program that takes again one input expression, here we give it the list `(3 4)`.  We witness
+```
+(2 3 4) = (cons 2 '(3 4)) = ( (cons 2) '(3 4)).
+```
+
+The procedure of breaking up a function  that takes n arguments into a sequence of n unary functions is called 'currying'. 
+
+**In Trivium Lisp, like in Haskell, every command except `list` is curried.**
+
+This aspect is fundamentally different from the original Lisp and its dialects. With respect to Currying Trivium Lisp follows the same strategy as Haskell.
+
+
+## Unnamed Functions
+
+At this stage, if we completed the semantics of def by giving a definition for Y*(f;p), using conditional substitutions and lt::S, lt::K,  we could have finished our semantic description of Trivium Lisp.
+
+
+The language as we have given it now is Turing complete and friendly to the C++-compiler, but it is quite hostile to its human users as we do not have a method to specify functions in a readable manner.
+
+We give some examples of functions:
+
+1. The identity function `x --> x`.  
+
+We let `id := (lt::S  lt::K  lt::K)`. ( We then verify that `Eval[ (id x) ]= Eval[x]` holds.
+
+2. The function B:(x, y, z) ---> x (yz).  
+
+we let 
+```
+		B := ( lt::S, (lt::K, lt::S), lt::K )
+```
+and verify the identity  `Eval[ (B x y z) ] = Eval[x (y z)]` for arbitrary expressions `x, y, z`.
+
+
+As we said, the representations of `id` and `B` are good for a compiler to deal with, but very bad to follow by a human programmer.
+
+
+We need to add a feature to Trivium Lisp to deal with unnamed functions. For this reason we extend the set Expr of symbolic expressions to a set Expr* of *extended Trivium Lisp expressions*:
+
+An extended Trivium Lisp expression is either
+
+(a) and atomic Trivium Lisp expression;
+(b) an expression of the form `(ps...)` for extended Trivium Lisp expressions ps... ;
+(c) an expression of the form `[x xs...]p` with  an extended Trivium Lisp `p` expression and identifiers x, xs... .
+
+
+We shall write `Expr*` for the set of extended Trivium Lisp expressions.
+
+
+An expression of the form `[x xs...]p` will be given the meaning of the anonymous  function that binds formal parameters  `x xs...` in a function body `p`.
+
+
+We use the following fact:
+
+For every pair `(x, q)` with `x` and identifier and `q` an expression in Expr
+we can pick an expression `fun(x, q)` in Expr that satisfies the property
+```
+   Eval[ (fun(x,q)  t )} =  Eval[ <t/x> q ].
+```
+We can pick `f` to be a map that is computable in linear time.
+
+
+
+We now give a function
+```
+    Reduce: Expr* ---> Expr.
+```
+
+by the foollowing pattern matching rules ordered by decreasing priority:
+```
+	Reduce[ p ] = p  for p in Expr
+
+	Reduce[  [x]p  ] = fun(x, p)                 for p in Expr
+
+	Reduce[ ( ps... ) ] = ( Reduce[ps]... )
+	
+	Reduce[  [x]p ] = Reduce[  [x] Reduce[p] ]  for p not in Expr
+
+	Reduce[  [x1 ... xn x]p  = Reduce[  [x1...xn] Reduce[  [x]p ] ]
+	                                            for n >= 1
+
+```
+
+
+```
+Definition:  We write p* = Reduce[p]  and call p* the *reduced representation* of p.
+```
+
+
+
+Now we can extend the semantics  `Eval: Expr --->  Expr` to semantics on extended expressions
+```
+`Eval*: Expr* --->  Expr*
+``` 
+by letting
+```
+	Eval*(p) = Eval( p* ).
+```
+
+
+Extended Trivium Lisp expressions are, from a technically speaking mere semantic sugar, but without them, the life of a Trivium Lisp programmer would be "semantically bitter" to an extreme extent. The feature is indispensable for the creation of readable code. 
+
+Consider the examples of the function `B` that maps parameters `x, y, z` into `x(yz)` and the identity function. With extended Trivium Lisp expressions we can write:
+
+```
+B =   [x y z] ( x ( y z ) )
+id =  [x]x
+```
+
+
+### The Choice of y*(f;p)
+
+Let us assume that the semantics for defining a named objects we use the "naive"  definition that does not permit recursion:
+
+```
+Eval[ (def f p q ) ] = Eval[  < p / f / name_clash<f> >q ].  
+```
+
+
+With this pick and all the previous formulas for `Eval` we have a complete semantic description of `Eval` and `Eval*`, or for (extended) Trivium Lisp without recursion.
+
+We pick 
+```
+    y(f;p) = ([f] p  (Y* [f]p))
+```
+and reduce it to
+```
+	y*(f;p) = Reduce[ y(f;p) ].
+```
+This is an expression in `Expr`.
+
+If now we replace the naive choice by of `Eval[ (def f p q) ]` by
+
+```
+Eval[ (def f p q ) ] = Eval[  < y*(f;p) / f / name_clash<f> >q ],
+```
+then we have our desired recursive functions.
+
+
+
+It is by no means a priori clear that this is well-defined. The construction of `y*(f;p)`, while given formally in a correct setup here, can only be truly understood in the context of combinatory logic, its simulation of the λ-calculus, and fixed-point caclculators. 
+
+
+The intersted reader is referred to the first three chapters of *Hindley*
+
+
+
+
+## Representations of Symbolic Expressions
+
+We have discussed Trivium Lisp in a merely abstract setup without consideration how we represent expressions in C++. This representation will now be discussed.
+
+The framework contains two class templates:
+
+```
+namespace lt
+{
+    template<  typename...  > struct s {};
+
+	template< char... > using text = ...; 
+	
+	template< int N >
+	using integer = ... ;
+	
+}
+```
+
+
+
+We define a function `CppRep: Expr --->  C++-Types` by a set of pattern matching rules, ordered by decending priority:
+
+We assume that x... is an arbitrary set of n > 0 elements.
+
+```
+1.  CppRep[ (list x... ) ] =  lt::s<  lt::list<n>,  Rep[x]...  >
+2.  CppRep[  () ]          =  lt::s<>
+3.  CppRep[  (list) ]      =  lt::s<>
+
+4.  CppRep[ list ]         =  lt::text< 'l','i','s','t' >
+
+5.  CppRep[ (x...) ]       =  lt::s< Rep[x]... >
+
+6.  CppRep[ z ]            = integer<n>
+    for z an integer literal
+ 
+7.  CppRep[ z ]            = lt::text< z0, z1, ... >  
+         for an identifier z = z0 z1 z2... 
+```
+
+Consider the expression p = `(list 2 -3 list abc)`. The first rule that matches is rule 1. Thus we gain
+
+`CppRep[p] =  lt::s< lt::list<4>, Rep[2], Rep[-3], Rep[list], Rep[abc] >`.
+
+For the inner 'list' argument, rule 2 applies, for the integer arguments rule 4 applies. For 'abc' rule 5 applies. We conclude
+
+```
+CppRep[p] = lt::s<  lt::list<4>
+                 ,  lt::integer<2>
+                 ,  lt::integer<-3>
+                 ,  lt::text<'l','i','s','t'>
+                 ,  lt::text<'a','b','c'>
+                 > 
+```
+
+
+Now we give a "opposite" partial function
+```
+	SymRep:  C++-Types  ---> Expr
+```
+
+For types `Xs...` and ascii-values `txt...` we let
+```
+	SymRep[ lt::s< Xs... > ]  = ( Symrep[Xs]... )
+	SymRep[ lt::integer<n> ]  =  n  (as an integer literal)
+	SymRep[ text< txt... > ]  =  txt... ( as a character literal )
+```
+
+For  n = sizeof...(Xs) we let
+```
+    SymRep[ s<  lt::list<n>, Xs... > ] = ( list  SymRep[Xs]... )
+```
+
+For n < sizeof...(Xs) we let
+```
+    SymRep[ s< lt::list<n>, Xs... > ] = ( lt::list<n>,  SymRep[Xs]... )
+```
+
+The case n > sizeof...(Xs) is invalid input.
+
+For any other C++-type `X` we let
+```
+    SymRep[ X ] = X.
+```
+
+
+The maps SymRep and CppRep are not inverses of each other. This requirement would be too strict to be practical. Instead they are pseudo-inverses. They satisfy the identities
+```
+   SymRep o CppRep o SymRep  =  SymRep
+   CppRep o SymRep o CppRep  =  CppRep
+````
+
+This is enough to give Trivium Lisp a "meaning in C++"
+
+
+### s_expr: The C++-Representation Of Symbolic Expressions
+
+
+[TO BE CONTINUED AT 10 FEBRUARY 2025]
