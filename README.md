@@ -399,12 +399,11 @@ The following items are the symbolic atoms of Trivium Lisp:
 
 1. Keywords:
 ```
-apply    and    C++    cons    drop_first    eval    eq
-first    if    irreducible    not    or    quote requires
-symbolic    xor    true    false
-==    !=    <    <=    >    >=    +    -    *    /    %
+apply    and    C++    cons    drop_first    eval    eq    evaluable
+first    if    if_possible  irreducible    not    or    quote
+requires    show_error    symbolic    xor    true    false    ==
+!=    <    <=    >    >=    +    -    *    /    %
 ```
-
 
 2. C++-types;
 
@@ -859,6 +858,100 @@ Then we let
 ```
 Eval[  ( map<Entry...> p )] = E::value;
 ```
+
+
+
+## evaluation_failure
+
+When the evaluation of a symbolic expression `expr` is attempted, three scenarios are possible:
+
+1. The evaluation of `expr` terminates with an evaluation result.
+2. The evaluation never stops. (In reality, this triggers a compilation error when the maximal template depth of the compiler is exceeded).
+3. The expression `expr` is not evaluable. This happens when neither (1) nor (2) applies. For instance it may happen if we attempt to evaluate an undefined symbol, or if a function is given improper arguments.
+
+
+We call the third scenario an *evaluation failure*. The command
+```
+	(evaluation_failure expr)
+```
+evaluates to `true` when an attempt to evaluate `expr` would result in an evaluation failure. When an evaluation is possible (and terminates), then `false` is returned. 
+
+(If the evaluation of `expr` does not terminate, or the evaluation exceeds the resources of the  C++-compiler (template-depth, memory, lookup tables etc), then a compilation error will arise).
+
+
+
+## if_possible
+
+```
+	eval[ (if_possible p q) ] = eval[  ( if (evaluation_failure p) q  p) ]
+```
+If the evaluation of `p` fails, then we evaluate `q`. Otherwise we evaluate p.
+Note that that `if_possible` is not implemented with an if-statement. 
+
+(The `if`-statement is only given to specify the semantics of `if_possible`. It is not used to implement `if_possible`, because it has the disadvantage that `p` may be evaluated twice. The implementation of the Trivium Lisp interpreter ensures that `p` is evaluated only once).
+
+
+
+## show_error
+```
+(show_error expr)
+```
+The command show_error is only used for debugging purposes. It makes use of the following class template to indicate errors:
+```
+namespace lt
+{
+	tmeplate<  typename...  >  struct evaluation_failure {};
+}
+
+```
+The expression `(show_error expr)` evaluates to `lt::evaluation_failure<>`, when the evaluation of  `expr` would not result in an evaluation error. 
+
+Otherwise, an instance of the form lt::evaluation_failure< Xs... > with a non-empty parameter pack `Xs...` is returned. 
+
+The parameter gives hints to the question why the expression `expr` yields an evaluation failure.
+
+**It is not admissible to make any assumptions on the exact nature of the pack `Xs...` except for whether it is empty (no evaluation error) or non-empty (when an evaluation error occurred).**
+
+The parameters in the pack are merely meant to give debugging hints. They can be seen as a metaprogramming analogon for error messages from a C++-compiler.
+
+
+
+Note that the user is allowed to treat instances of evaluation_failure as normal types that may occur in symbolic expressions as normal components. We consider two evaluations:
+
+*Case 1: No error.*
+
+ ```
+ eval[  (show_error (quote lt::evaluation_failure<int>) ) ] =
+    lt::evaluation_failure<>;
+ ```
+
+In the evaluation above no evaluation failure occurs. Thus the parameter pack of lt::evaluation_failure is empty.
+
+
+
+*Case 2: Evaluation error occurs.*
+
+```
+eval[  (show_error  (first lt::evaluation_failure<int>))  ] =
+	
+lt::evaluation_failure< 
+    lt::text<'f','i','r','s','t>,  
+    lt::evaluation_failure< 	lt::evaluation_failure<int> >
+ >
+ ```
+
+
+The parameter pack is not empty, because an evaluation error does occur. Observe the following parameter that is contained in the pack:
+
+```
+    lt::evaluation_failure< 	lt::evaluation_failure<int> >.
+```
+
+The outer instance indicates an error that arose during the attempt to evaluate the inner instance, whereas the inner instance is an ordinary parameter.
+
+Confusion of this kind should be avoided. Thus:
+
+*It is best to avoid using instances of lt::evaluation_failure as atomic symbolic expressions.*
 
 
 
