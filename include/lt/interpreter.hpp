@@ -28,6 +28,30 @@ namespace lt
 
 
 
+    template<  typename... Error  >
+    requires( sizeof...(Error) <= 1  )
+    struct error { };
+
+
+
+    template<>
+    struct error<>
+    {
+    private:
+
+        template<  auto const >
+        friend struct interpreter;
+
+        template<  typename...  > struct evaluation_failure_ {};
+    };
+
+
+
+    template<  typename...  >
+    struct evaluation_failure {};
+
+
+
     template<>
     struct interpreter< map{}  >
     {
@@ -51,16 +75,62 @@ namespace lt
         struct eval_;  // The evaluator
 
 
+
         template<  typename Expr  >
         using eager_eval = typename eval_<  eval_mode::eager,  Expr  >::type;
+
+
 
 
         template<  eval_mode,  typename...  >
         struct call;
 
 
+        template<  typename... Xs  >
+        using evaluation_failure_ = typename error<>::evaluation_failure_< Xs... >;
+
+
+        static consteval bool is_possibly_evaluable_(...) { return true; }
+
+
+
+        template<  typename... Xs  >
+        static consteval bool is_possibly_evaluable_(type_hull<evaluation_failure_<Xs...>>) { return false; }
+
+
+
+        template<  typename T  >
+        static inline constexpr bool is_possibly_evaluable = is_possibly_evaluable_( type_hull<T>{} );
+
+
+
+        template<  auto op,  template<  typename... > class F,  typename... Xs  >
+        struct gather
+        :   with_result<  evaluation_failure_<  value_type<op>,  Xs... >  >
+        { };
+
+
+
+        template<  auto                            op
+                ,  template<  typename... > class  F
+                ,  typename...                     Xs
+                >
+        requires
+        (
+            (   requires( F<Xs...> ) { nullptr; }
+                && ... &&
+                is_possibly_evaluable<Xs>
+            )
+        )
+        struct gather<  op,  F,  Xs... >
+        :   with_result< F< Xs...>  >
+        { };
+
+
+
 
         struct Y_combinator {};
+
 
 
 // -----------------------------------------------------------------------------
@@ -78,14 +148,17 @@ namespace lt
         using  cons         =  value_type<"cons"_text>;
         using  def          =  value_type<"def"_text>;
         using  drop_first   =  value_type<"drop_first"_text>;
+        using  eval_fail    =  value_type<"evaluation_failure"_text>;
         using  evaluate     =  value_type<"eval"_text>;
         using  eq           =  value_type<"eq"_text>;
         using  first        =  value_type<"first"_text>;
         using  if_          =  value_type<"if"_text>;
+        using  if_possible  =  value_type<"if_possible"_text>;
         using  irreducible  =  value_type<"irreducible"_text>;
         using  not_         =  value_type<"not"_text>;
         using  or_          =  value_type<"or"_text>;
         using  requires_    =  value_type<"requires"_text>;
+        using  show_error   =  value_type<"show_error"_text>;
         using  symbolic     =  value_type<"Symbolic"_text>;
         using  xor_         =  value_type<"xor"_text>;
         using  true_        =  value_type<"true"_text>;
@@ -98,66 +171,91 @@ namespace lt
 //
 // -----------------------------------------------------------------------------
 
-        static consteval int  arity(...) { return -1; }
+        static consteval int  arity_(...) { return -1; }
 
 
 
         template<  auto N  >
-        static consteval int  arity(list<N>)   { return N; }
+        static consteval int  arity_( type_hull<list<N>>)   { return N; }
 
 
 
         template<  auto N
                 ,  template< typename... > class F
                 >
-        static consteval int  arity(combinator< N, F >) { return N; }
+        static consteval int  arity_(type_hull<combinator< N, F >>) { return N; }
 
 
 
         template<  typename... Entries  >
-        static consteval int  arity(map< Entries... >) { return 1; }
+        static consteval int  arity_(type_hull<map< Entries... >>) { return 1; }
 
 
-        static consteval int  arity(true_)         { return 0; }
-        static consteval int  arity(false_)        { return 0; }
-        static consteval int  arity(s<>)           { return 0; }
+        template<  typename... Xs  >
+        static consteval int  arity_(type_hull< evaluation_failure_< Xs... >  >) { return 1; }
 
 
-        static consteval int  arity(cpp)           { return 1; }
-        static consteval int  arity(drop_first)    { return 1; }
-        static consteval int  arity(evaluate)      { return 1; }
-        static consteval int  arity(first)         { return 1; }
-        static consteval int  arity(irreducible)   { return 1; }
-        static consteval int  arity(not_)          { return 1; }
-        static consteval int  arity(symbolic)      { return 1; }
 
-        static consteval int  arity(apply)         { return 2; }
-        static consteval int  arity(and_)          { return 2; }
-        static consteval int  arity(cons)          { return 2; }
-        static consteval int  arity(eq)            { return 2; }
-        static consteval int  arity(K)             { return 2; }
-        static consteval int  arity(requires_)     { return 2; }
-        static consteval int  arity(or_)           { return 2; }
-        static consteval int  arity(xor_)          { return 2; }
-        static consteval int  arity(Y_combinator)  { return 2; }
-        static consteval int  arity(op<"=="_text>)    { return 2; }
-        static consteval int  arity(op<"!="_text>)    { return 2; }
-        static consteval int  arity(op<"<"_text>)     { return 2; }
-        static consteval int  arity(op<"<="_text>)    { return 2; }
-        static consteval int  arity(op<">"_text>)     { return 2; }
-        static consteval int  arity(op<">="_text>)    { return 2; }
-        static consteval int  arity(op<"+"_text>)     { return 2; }
-        static consteval int  arity(op<"-"_text>)     { return 2; }
-        static consteval int  arity(op<"*"_text>)     { return 2; }
-        static consteval int  arity(op<"/"_text>)     { return 2; }
-        static consteval int  arity(op<"%"_text>)     { return 2; }
+        static consteval int  arity_(type_hull<true_>)         { return 0; }
+        static consteval int  arity_(type_hull<false_>)        { return 0; }
+        static consteval int  arity_(type_hull<s<>>)           { return 0; }
 
 
-        static consteval int  arity(if_)           { return 3; }
-        static consteval int  arity(S)             { return 3; }
-        static consteval int  arity(def)           { return 3; }
+        static consteval int  arity_(type_hull<cpp>)            { return 1; }
+        static consteval int  arity_(type_hull<drop_first>)     { return 1; }
+        static consteval int  arity_(type_hull<eval_fail>)      { return 1; }
+        static consteval int  arity_(type_hull<evaluate>)       { return 1; }
+        static consteval int  arity_(type_hull<first>)          { return 1; }
+        static consteval int  arity_(type_hull<irreducible>)    { return 1; }
+        static consteval int  arity_(type_hull<not_>)           { return 1; }
+        static consteval int  arity_(type_hull<show_error>)     { return 1; }
+        static consteval int  arity_(type_hull<symbolic>)       { return 1; }
+
+        static consteval int  arity_(type_hull<apply>)          { return 2; }
+        static consteval int  arity_(type_hull<and_>)           { return 2; }
+        static consteval int  arity_(type_hull<cons>)           { return 2; }
+        static consteval int  arity_(type_hull<eq>)             { return 2; }
+        static consteval int  arity_(type_hull<if_possible>)    { return 2; }
+        static consteval int  arity_(type_hull<K>)              { return 2; }
+        static consteval int  arity_(type_hull<requires_>)      { return 2; }
+        static consteval int  arity_(type_hull<or_>)            { return 2; }
+        static consteval int  arity_(type_hull<xor_>)           { return 2; }
+        static consteval int  arity_(type_hull<Y_combinator>)   { return 2; }
+        static consteval int  arity_(type_hull<op<"=="_text>>)  { return 2; }
+        static consteval int  arity_(type_hull<op<"!="_text>>)  { return 2; }
+        static consteval int  arity_(type_hull<op<"<"_text>>)   { return 2; }
+        static consteval int  arity_(type_hull<op<"<="_text>>)  { return 2; }
+        static consteval int  arity_(type_hull<op<">"_text>>)   { return 2; }
+        static consteval int  arity_(type_hull<op<">="_text>>)  { return 2; }
+        static consteval int  arity_(type_hull<op<"+"_text>>)   { return 2; }
+        static consteval int  arity_(type_hull<op<"-"_text>>)   { return 2; }
+        static consteval int  arity_(type_hull<op<"*"_text>>)   { return 2; }
+        static consteval int  arity_(type_hull<op<"/"_text>>)   { return 2; }
+        static consteval int  arity_(type_hull<op<"%"_text>>)   { return 2; }
 
 
+        static consteval int  arity_(type_hull<if_>)           { return 3; }
+        static consteval int  arity_(type_hull<S>)             { return 3; }
+        static consteval int  arity_(type_hull<def>)           { return 3; }
+
+
+        template<  typename T  >
+        static inline constexpr int arity = arity_(type_hull<T>{});
+
+
+
+// -----------------------------------------------------------------------------
+//  evaluation_failure expressions:
+// -----------------------------------------------------------------------------
+
+
+        template<  eval_mode    mode
+                ,  typename...  Xs
+                ,  typename     Ignore
+                >
+        struct call<  mode,  evaluation_failure_< Xs... >,  Ignore  >
+        :   with_result<  evaluation_failure_< Xs... >  >
+        { };
 
 
 // -----------------------------------------------------------------------------
@@ -181,11 +279,28 @@ namespace lt
         template<  eval_mode  mode,  typename T  >
         requires
         (
-            arity(T{}) >= 0
+            arity<T> >= 0
         )
         struct eval_<  mode,  T  >
         :   with_result<  T  >
         { };
+
+
+
+// -----------------------------------------------------------------------------
+//  evaluation_failure atoms (i e anything with arity < 0 ):
+// -----------------------------------------------------------------------------
+
+
+        template<  eval_mode  mode,  typename T  >
+        requires
+        (
+            arity<T> < 0
+        )
+        struct eval_<  mode,  T  >
+        :   with_result<  evaluation_failure_<T>  >
+        { };
+
 
 
 
@@ -227,14 +342,14 @@ namespace lt
 
         template<  eval_mode mode >
         struct eval_<  mode,  true_  >
-        :   with_result<  true_ >
+        :   with_result<  value<true> >
         { };
 
 
 
         template<  eval_mode mode >
         struct eval_<  mode,  false_  >
-        :   with_result<  false_ >
+        :   with_result<  value<false> >
         { };
 
 
@@ -259,37 +374,6 @@ namespace lt
 
 
 // -----------------------------------------------------------------------------
-// Use of an undefined symbol: Generate an error message.
-// -----------------------------------------------------------------------------
-
-        template<  eval_mode    mode
-                ,  char...      undefined_symbol
-                >
-        requires
-        (
-            arity(text< undefined_symbol... >{}) < 0
-        )
-        struct eval_<  mode,  text< undefined_symbol... >  >
-        {
-           static_assert( arity(text< undefined_symbol... >{}) >= 0,
-R"(
-
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-!
-! METAPROGRAMMING ERROR:
-!
-! Attempt to use an undefined symbol. Either fix a typing error
-! in the metaprogram or provide the definition if it was forgotten.
-!
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-)" );
-
-        };
-
-
-
-// -----------------------------------------------------------------------------
 //  Expressions:
 // -----------------------------------------------------------------------------
 
@@ -303,12 +387,12 @@ R"(
                 >
         requires
         (
-            int{1 + sizeof...(Xs)}  <  arity(Op{})
+            int{1 + sizeof...(Xs)}  <  arity<Op>
         )
         struct eval_<  mode
                     ,  s<  Op,  X,  Xs...  >
                     >
-        :   with_result<  s<  Op,  X,  Xs...  >  >
+        :   with_result<  s< Op,  X,  Xs...  >  >
         {};
 
 
@@ -321,31 +405,17 @@ R"(
                 >
         requires
         (
-            arity(Op{}) < 0
+            arity<Op> < 0
         )
         struct eval_<  mode
                     ,  s<  Op,  X,  Xs...  >
                     >
-        {
-           static_assert( arity(Op{}) >= 0,
-R"(
-
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-!
-! METAPROGRAMMING ERROR:
-!
-! Attempt to call an undefined function. Either fix a typing error
-! in the metaprogram or provide the definition if it was forgotten.
-!
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-)" );
-
-        };
+        :   with_result< evaluation_failure_<Op,  X,  Xs... >  >
+        { };
 
 
 
-// Expression ready for evamapion:
+// Expression ready for evaluation:
 
         template<  eval_mode    mode
                 ,  typename     Op
@@ -357,7 +427,7 @@ R"(
                     >
         :   call<  mode,  Op,  X,  Xs...  >
         {
-            static_assert(  1 + sizeof...(Xs) == arity(Op{})   );
+            static_assert(  1 + sizeof...(Xs) == arity<Op>   );
         };
 
 
@@ -375,9 +445,9 @@ R"(
                 >
         requires
         (
-            arity(Op{}) > 0
+            arity<Op> > 0
             &&
-            2 + sizeof...(Ys)  > arity(Op{})
+            2 + sizeof...(Ys)  > arity<Op>
         )
         struct eval_<  mode
                     ,  s<  Op,  X,  Y,  Ys...  >
@@ -402,9 +472,9 @@ R"(
                 >
         requires
         (
-            arity(Op{}) > 0
+            arity<Op> > 0
             &&
-            2 + sizeof...(Xs)  <=  arity(Op{})
+            2 + sizeof...(Xs)  <=  arity<Op>
         )
         struct eval_<  mode
                     ,  s<  s<  Op,  X,  Xs...  >,  Y  >
@@ -428,9 +498,9 @@ R"(
                 >
         requires
         (
-            arity(Op{}) > 0
+            arity<Op> > 0
             &&
-            2 + sizeof...(Xs)  <=  arity(Op{})
+            2 + sizeof...(Xs)  <=  arity<Op>
         )
         struct eval_<  mode
                     ,  s<  s<  Op,  X,  Xs...  >,  Y,  Z,  Zs...  >
@@ -476,7 +546,7 @@ R"(
 
         template<  typename... Xs  >
         struct eval_<  eval_mode::eager,  lazy_list<  Xs...  >  >
-        :   with_result<  s<   typename eval_<  eval_mode::eager,  Xs  >::type...  >  >
+        :   gather<  "list"_text,  s,   typename eval_<  eval_mode::eager,  Xs  >::type...  >
         { };
 
 
@@ -496,7 +566,7 @@ R"(
                    ,  list< N >
                    ,  Xs...
                    >
-        :   with_result<  s<  typename eval_<  eval_mode::eager,  Xs  >::type...  >  >
+        :   gather<  "list"_text,  s,  typename eval_<  eval_mode::eager,  Xs  >::type...  >
         { };
 
 
@@ -529,7 +599,8 @@ R"(
         sizeof...(Xs) == N
     )
     struct call<  mode,  combinator<  N,  F  >,  Xs...  >
-    :   with_result<  F<  eager_eval<Xs>...  >  >
+//    :   with_result<  F<  eager_eval<Xs>...  >  >
+    :   gather< combinator< N, F >{},  F,  eager_eval<Xs>... >
     { };
 
 
@@ -542,7 +613,7 @@ R"(
                 ,  typename    X
                 >
         struct call<  mode,  symbolic,  X  >
-        :   with_result<  ts::symbolic<  eager_eval< X >  >  >
+        :   gather<  "ts::symbolic"_text,  ts::symbolic,  eager_eval<X>  >
         { };
 
 
@@ -551,7 +622,7 @@ R"(
                 ,  typename    X
                 >
         struct call<  mode,  cpp,  X  >
-        :   with_result<  ts::cpp<  eager_eval< X >  >  >
+        :   gather<  "ts::cpp"_text,  ts::cpp,  eager_eval<X>  >
         { };
 
 
@@ -561,8 +632,10 @@ R"(
 //  ----------------------------------------------------------------------------
 
 
-        template<  eval_mode,  typename  >
-        struct First;
+        template<  eval_mode,  typename T >
+        struct First
+        :   with_result<  evaluation_failure_< value_type<"first"_text>,  T  >  >
+        { };
 
 
 
@@ -590,6 +663,7 @@ R"(
 
 
 
+
         template<  eval_mode  mode
                 ,  typename   X
                 >
@@ -604,8 +678,10 @@ R"(
 //  ----------------------------------------------------------------------------
 
 
-        template<  eval_mode,  typename  >
-        struct Drop_First;
+        template<  eval_mode,  typename T  >
+        struct Drop_First
+        :   with_result<  evaluation_failure_<  value_type<"drop_first"_text>,  T  >  >
+        { };
 
 
 
@@ -649,8 +725,11 @@ R"(
 //  cons:
 // -----------------------------------------------------------------------------
 
-        template<  eval_mode,  typename,  typename  >
-        struct Cons;
+        template<  eval_mode,  typename X,  typename  Y>
+        struct Cons
+        :   with_result<  evaluation_failure_< value_type<"cons"_text>,  X,  Y  >  >
+        { };
+
 
 
         template<  typename     X
@@ -697,8 +776,8 @@ R"(
                    ,  lazy_list< Xs... >
                    >
         :   with_result<  s<  typename eval_< eval_mode::eager,  X  >::type
-                                ,  typename eval_< eval_mode::eager,  Xs  >::type... 
-                                >
+                           ,  typename eval_< eval_mode::eager,  Xs  >::type...
+                           >
                        >
         { };
 
@@ -726,13 +805,38 @@ R"(
 
         template<  typename X,  typename Y  >
         struct Eq
-        :   with_result<  false_  >
+        :   with_result<  value<false>  >
         { };
 
 
 
         template<  typename X >
-        struct Eq<  X,  X  >  :   with_result<  true_  >  { };
+        struct Eq<  X,  X  >
+        :   with_result<  value<true>  >
+        { };
+
+
+
+        template<  typename X,  typename Y  >
+        requires
+        (
+            ! is_possibly_evaluable<X> ||
+            ! is_possibly_evaluable<Y>
+        )
+        struct Eq< X,  Y  >
+        :   with_result<  evaluation_failure_< eq,  X,  Y  >  >
+        { };
+
+
+
+        template<  typename X  >
+        requires
+        (
+            ! is_possibly_evaluable<X>
+        )
+        struct Eq< X,  X  >
+        :   with_result<  evaluation_failure_<  eq,  X,  X  >  >
+        { };
 
 
 
@@ -758,60 +862,42 @@ R"(
                 >
         struct call<  mode,  map< Entries... >,  X  >
         :   with_result<  typename map< Entries... >::
-                          template lookup<  eager_eval< X >  >
+                          template lookup<  eager_eval< X >
+                                         ,  evaluation_failure_<  map<Entries...>,  X  >
+                                         >
                        >
         { };
 
 
 
 //  ----------------------------------------------------------------------------
-//  Conversion between symbolic boolean values "true"_text / "false"_text and
-//  the boolean values true/false from the C++-typesystem:
-//  ----------------------------------------------------------------------------
-
-
-        static consteval bool bool_rep(true_)  { return true;  }
-
-
-
-        static consteval bool bool_rep(false_) { return false; }
-
-
-
-        template< bool b >
-        static consteval auto bool_rep()
-        {
-            if constexpr (b)
-            {
-                return with_result< true_ >{};
-            }
-            else
-            {
-                return with_result< false_ >{};
-            }
-        }
-
-//  ----------------------------------------------------------------------------
 //   irreducible:
 //  ----------------------------------------------------------------------------
 
+
         template<  typename   >
         struct Irreducible
-        :   with_result< true_  >
+        :   with_result< value<true>  >
         { };
 
 
 
+        template<  typename  X  >
+        struct Irreducible<  evaluation_failure_<X>  >
+        :   with_result<  evaluation_failure_<  irreducible,  evaluation_failure_<X>  >  >
+        { };
+
+
         template<  typename... Xs  >
         struct Irreducible< s<  Xs...  >  >
-        :   decltype(   bool_rep<  sizeof...(Xs) == 0  >()   )
+        :   with_result<  value<sizeof...(Xs) == 0 >  >
         { };
 
 
 
         template<  typename... Xs  >
         struct Irreducible<  lazy_list< Xs... >  >
-        :   decltype(   bool_rep<  sizeof...(Xs) == 0  >()  )
+        :   with_result<  value< sizeof...(Xs) == 0 >  >
         { };
 
 
@@ -829,47 +915,17 @@ R"(
 //   requires:
 //  ----------------------------------------------------------------------------
 
-        template<  typename,  eval_mode mode,  typename  >
+        template<  eval_mode mode,  typename Cond,  typename X >
         struct Requires
-        {
-           static_assert( mode != mode,
-R"(
-
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-!
-! METAPROGRAMMING ERROR:
-!
-! A requirement needs to evaluate either to "true" or to "false".
-!
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-)" );
-
-        };
-
-
-
-        template<  eval_mode mode,  typename X  >
-        struct Requires<  true_,  mode,  X  >
-        :   eval_<  mode,  X  >
+        :   with_result<  evaluation_failure_<  requires_,  Cond,  X  >  >
         { };
 
 
 
         template<  eval_mode mode,  typename X  >
-        struct Requires<  false_,  mode,  X  >
-        {
-            static_assert(  mode != mode,
-R"(
-
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-!
-! METAPROGRAMMING ERROR:
-!
-! A requirement has not been met.
-!
-! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-)" );
-        };
+        struct Requires<  mode,  value<true>,  X  >
+        :   eval_<  mode,  X  >
+        { };
 
 
 
@@ -878,7 +934,7 @@ R"(
                 ,  typename   X
                 >
         struct call<  mode,  requires_,  Cond,  X  >
-        :   Requires<  eager_eval< Cond >,  mode,  X  >
+        :   Requires<  mode,  eager_eval< Cond >,  X  >
         { };
 
 
@@ -889,7 +945,14 @@ R"(
 
         template<  typename B  >
         struct Not
-        :   decltype(  bool_rep<  ! bool_rep( B{} )  >()  )
+        :   with_result<  evaluation_failure_<  not_, B >  >
+        { };
+
+
+
+        template<  bool b >
+        struct Not<  value<b> >
+        :   with_result<  value< !b >  >
         { };
 
 
@@ -910,7 +973,14 @@ R"(
 
         template<  typename B,  typename  C  >
         struct And
-        :   decltype(  bool_rep<  bool_rep(B{})  &&  bool_rep(C{})  >()  )
+        :   with_result<  evaluation_failure_<  and_, B, C >  >
+        { };
+
+
+
+        template<  bool a,  bool b  >
+        struct And<  value<a>,  value<b>  >
+        :   with_result<  value< a && b >  >
         { };
 
 
@@ -932,7 +1002,16 @@ R"(
 
         template<  typename B,  typename  C  >
         struct Or
-        :   decltype(  bool_rep<  bool_rep(B{})  ||  bool_rep(C{})  >()  )
+        :   with_result<  evaluation_failure_<  or_, B, C >  >
+        { };
+
+
+
+
+
+        template<  bool a,  bool b  >
+        struct Or<  value<a>,  value<b>  >
+        :   with_result<  value< a || b >  >
         { };
 
 
@@ -952,9 +1031,18 @@ R"(
 //  ----------------------------------------------------------------------------
 
 
+
         template<  typename B,  typename  C  >
         struct Xor
-        :   decltype(  bool_rep<  bool_rep(B{})  !=  bool_rep(C{})  >()  )
+        :   with_result<  evaluation_failure_<  xor_, B, C >  >
+        { };
+
+
+
+
+        template<  bool a,  bool b  >
+        struct Xor<  value<a>,  value<b>  >
+        :   with_result<  value< ! (a == b)  >  >
         { };
 
 
@@ -978,90 +1066,108 @@ R"(
 //      T: ( CMP  value<val_x>  value<val_y>  )
 //
 //  is determined by the C++-expression   E:  val_x CMP val_y.
-//  If E evaluates to true (false), then T evaluates to true_ (false_).
+//  If E evaluates to true (false), then T evaluates to value<true> (value<false>).
 //
 //  If E is not well-formed, then the compilation will fail.
 //
-//
-//  Examples (for ==. the other operators are similar):
-//
-//    ( == 3 4 )       ->  false_
-//
-//    ( == () () )     ->  Compilation error. s<> is not an instantiation of
-//                         value.
-//
-//    ( == true true)  ->  Compilation error.  true_t is not an instantiation of
-//                         value.
-//
-//    Let x be an expression that evaluates to value<2.9>, whereas y shall
-//    evaluate to value<3>.  Then
-//
-//    ( == x  3)       ->  false.
-//
+////
 //  ----------------------------------------------------------------------------
 
 
-        template<  typename,  typename,  typename  >
-        struct cmp_op;
+        template<  typename Op,  typename X,  typename  Y>
+        struct cmp_op
+        :   with_result<  evaluation_failure_<  value_type<"::comparison operation:: "_text>,  Op,  X,  Y  >  >
+        { };
 
 
 
         template<  auto x,  auto y  >
+        requires
+        requires( value< bool{ x == y } > )
+        {
+            nullptr;
+        }
         struct cmp_op<  value_type<"=="_text>
                      ,   value< x >
                      ,   value< y >
                      >
-        :   decltype(  bool_rep< x == y >()  )
+        :   with_result< value< bool{ x == y } > >
         { };
 
 
 
         template<  auto x,  auto y  >
+        requires
+        requires( value< bool{ x != y } > )
+        {
+            nullptr;
+        }
         struct cmp_op<  value_type<"!="_text>
                      ,   value< x >
                      ,   value< y >
                      >
-        :   decltype(  bool_rep< x != y >()  )
+        :   with_result< value< bool{ x !=y } > >
         { };
 
 
 
         template<  auto x,  auto y  >
+        requires
+        requires( value< bool{ (x < y) } > )
+        {
+            nullptr;
+        }
         struct cmp_op<  value_type<"<"_text>
                      ,   value< x >
                      ,   value< y >
                      >
-        :   decltype(  bool_rep< (x < y) >()  )
+        :   with_result< value< ( bool{ x < y } ) > >
         { };
 
 
 
         template<  auto x,  auto y  >
+        requires
+        requires( value< bool{ (x <= y) } > )
+        {
+            nullptr;
+        }
         struct cmp_op<  value_type<"<="_text>
                      ,   value< x >
                      ,   value< y >
                      >
-        :   decltype(  bool_rep< (x <= y) >()  )
+        :   with_result< value< ( bool{ x <= y } ) > >
         { };
 
 
 
         template<  auto x,  auto y  >
+        requires
+        requires( value< bool{ (x > y) } > )
+        {
+            nullptr;
+        }
         struct cmp_op<  value_type<">"_text>
                      ,   value< x >
                      ,   value< y >
                      >
-        :   decltype(  bool_rep< (x > y) >()  )
+        :   with_result< value< ( bool{ x > y } ) > >
         { };
 
 
 
         template<  auto x,  auto y  >
+        requires
+        requires( value< bool{ (x >= y) } > )
+        {
+            nullptr;
+        }
         struct cmp_op<  value_type<">="_text>
                      ,   value< x >
                      ,   value< y >
                      >
-        :   decltype(  bool_rep< (x >= y) >()  )
+        :   with_result< value< ( bool{ x >= y } ) > >
+
         { };
 
 
@@ -1104,14 +1210,20 @@ R"(
 //
 //  ----------------------------------------------------------------------------
 
-        template<  typename,  typename,  typename  >
-        struct Ar_Op;
-
+        template<  typename Op,  typename X,  typename Y  >
+        struct Ar_Op
+        :   with_result<  evaluation_failure_<  value_type<"::arithmetic operation::"_text>,  Op,  X,  Y  >  >
+        { };
 
 
         template<  auto x
                 ,  auto y
                 >
+        requires
+        requires(  value< x + y >  )
+        {
+            nullptr;
+        }
         struct Ar_Op<  value_type<"+"_text>
                     ,  value< x >
                     ,  value< y >
@@ -1124,6 +1236,11 @@ R"(
         template<  auto x
                 ,  auto y
                 >
+        requires
+        requires(  value< x - y >  )
+        {
+            nullptr;
+        }
         struct Ar_Op<  value_type<"-"_text>
                     ,  value< x >
                     ,  value< y >
@@ -1136,6 +1253,11 @@ R"(
        template<  auto x
                 ,  auto y
                 >
+        requires
+        requires(  value< x * y >  )
+        {
+            nullptr;
+        }
         struct Ar_Op<  value_type<"*"_text>
                     ,  value< x >
                     ,  value< y >
@@ -1148,6 +1270,11 @@ R"(
         template<  auto x
                 ,  auto y
                 >
+        requires
+        requires(  value< x / y >  )
+        {
+            nullptr;
+        }
         struct Ar_Op<  value_type<"/"_text>
                     ,  value< x >
                     ,  value< y >
@@ -1160,6 +1287,11 @@ R"(
         template<  auto x
                 ,  auto y
                 >
+        requires
+        requires(  value< x % y >  )
+        {
+            nullptr;
+        }
         struct Ar_Op<  value_type<"%"_text>
                     ,  value< x >
                     ,  value< y >
@@ -1187,7 +1319,7 @@ R"(
                    ,  X
                    ,  Y
                    >
-        : Ar_Op<  text< ar_op... >,  eager_eval< X >,  eager_eval< Y >  >
+        :   Ar_Op<  text< ar_op... >,  eager_eval< X >,  eager_eval< Y >  >
         { };
 
 
@@ -1196,8 +1328,10 @@ R"(
 // -----------------------------------------------------------------------------
 
 
-        template<  eval_mode,  typename,  typename,  typename  >
-        struct If;
+        template<  eval_mode,  typename Cond,  typename X,  typename Y >
+        struct If
+        :   with_result<  evaluation_failure_<  Cond,  X,  Y  >  >
+        { };
 
 
 
@@ -1205,7 +1339,7 @@ R"(
                 ,  typename  unevaluated_X
                 ,  typename  unevaluated_Y
                 >
-        struct If<  mode,  true_,  unevaluated_X,  unevaluated_Y  >
+        struct If<  mode,  value<true>,  unevaluated_X,  unevaluated_Y  >
         :   eval_<  mode,  unevaluated_X  >
         { };
 
@@ -1215,7 +1349,7 @@ R"(
                 ,  typename   unevaluated_X
                 ,  typename   unevaluated_Y
                 >
-        struct If<  mode,  false_,  unevaluated_X,  unevaluated_Y  >
+        struct If<  mode,  value<false>,  unevaluated_X,  unevaluated_Y  >
         :   eval_<  mode,  unevaluated_Y  >
         { };
 
@@ -1237,6 +1371,116 @@ R"(
 
 
 // -----------------------------------------------------------------------------
+//  evaluation_failure:
+// -----------------------------------------------------------------------------
+
+        template<  typename  >
+        struct Eval_Fail
+        :   with_result<  value<false>  >
+        { };
+
+
+
+        template<  typename... Xs  >
+        struct Eval_Fail<  evaluation_failure_< Xs... >  >
+        :   with_result<  value<true>  >
+        { };
+
+
+
+        template<  eval_mode  mode
+                ,  typename   X
+                >
+        struct call<  mode,  eval_fail,  X  >
+        :   Eval_Fail<  eager_eval<X>  >
+        { };
+
+
+// -----------------------------------------------------------------------------
+//  if_possible:
+// -----------------------------------------------------------------------------
+
+        template<  eval_mode
+                ,  typename   P
+                ,  typename
+                >
+        struct If_Possible
+        :   with_result<  P  >
+        { };
+
+
+
+        template<  eval_mode    mode
+                ,  typename...  Ps
+                ,  typename     Q
+                >
+        struct If_Possible<  mode
+                          ,  evaluation_failure_<  Ps...  >
+                          ,  Q
+                          >
+        :   eval_<  mode,  Q  >
+        { };
+
+
+
+        template<  eval_mode  mode
+                ,  typename   P
+                ,  typename   Q
+                >
+        struct call<  mode,  if_possible,  P,  Q  >
+        :   If_Possible<  mode
+                       ,  eager_eval< P  >
+                       ,  Q
+                       >
+        { };
+
+
+
+
+// -----------------------------------------------------------------------------
+//  show_error:
+// -----------------------------------------------------------------------------
+
+        template<  typename No_Error  >
+        struct Show_Error
+        :   with_result<  error<>  >
+        { };
+
+
+
+        template<  typename T  >
+        struct use_outer_evaluation_failure
+        :   with_result< T >
+        { };
+
+
+
+        template<  typename... Xs  >
+        struct use_outer_evaluation_failure<  evaluation_failure_< Xs... >  >
+        :   with_result<  evaluation_failure<  typename use_outer_evaluation_failure<Xs>::type...  >  >
+        { };
+
+
+
+        template<  typename... Xs  >
+        struct Show_Error<  evaluation_failure_<  Xs... >  >
+        :   with_result<  error<  typename
+                                  use_outer_evaluation_failure< evaluation_failure_< Xs... >  >::type
+                               >
+                       >
+        { };
+
+
+
+        template<  eval_mode  mode
+                ,  typename   X
+                >
+        struct call<  mode,  show_error,  X  >
+        :   Show_Error<  eager_eval<X>  >
+        { };
+
+
+// -----------------------------------------------------------------------------
 //  eval:
 // -----------------------------------------------------------------------------
 
@@ -1250,13 +1494,17 @@ R"(
 
 
 
+
 // -----------------------------------------------------------------------------
 //  apply:
 // -----------------------------------------------------------------------------
 
 
-        template<  eval_mode,  typename,  typename  >
-        struct Apply;
+        template<  eval_mode,  typename F,  typename  Xs  >
+        struct Apply
+        :   with_result<  evaluation_failure_<  apply,  F,  Xs  >  >
+        { };
+
 
 
         template<  eval_mode    mode
@@ -1503,6 +1751,32 @@ R"(
 
 
         template<  eval_mode  mode
+                ,  typename   F_Name
+                ,  typename   F_Term
+                ,  typename   Next
+                >
+        struct Def_
+        :   public Def<  mode,  F_Name,  F_Term,  Next  >
+        { };
+
+
+
+        template<  eval_mode    mode
+                ,  typename     F_Name
+                ,  typename...  Xs
+                ,  typename     Next
+                >
+        struct Def_<  mode
+                   ,  F_Name
+                   ,  evaluation_failure_<  Xs...  >
+                   ,  Next
+                   >
+        :   with_result<  evaluation_failure_<  def,  F_Name,  evaluation_failure_< Xs... >,  Next  >  >
+        { };
+
+
+
+        template<  eval_mode  mode
                 ,  char...    F_Name
                 ,  typename   F_Term
                 ,  typename   Next
@@ -1513,11 +1787,11 @@ R"(
                    ,  F_Term
                    ,  Next
                    >
-        :   Def<  mode
-               ,  text< F_Name... >
-               ,  eager_eval< F_Term >
-               ,  Next
-               >
+        :   Def_<  mode
+                ,  text< F_Name... >
+                ,  eager_eval< F_Term >
+                ,  Next
+                >
         { };
 
 
@@ -1610,29 +1884,27 @@ R"(
         :   eval_<  eval_mode::eager
                  ,  s<  value_type<"def"_text>,  text<'`'>,  map< Entries... >,  P  >
                  >
-        { };
+        {
+            static_assert(  is_possibly_evaluable<
+                eager_eval<  s<  value_type<"def"_text>,  text<'`'>,  map< Entries... >,  P  >  >
+                                                 >,
+R"(
 
+! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+!
+! METAPROGRAMMING ERROR:
+!
+! Expression contains at least one ubexpression that causes an
+! evaluation failure.
+!
+! @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+)" );
+        };
 
 
 
         struct publicly_visible
         {
-
-
-/*
-            template<   literal_or_s program_literal,  unsigned N,  typename Expr  >
-            static consteval auto parse_(  literal_or_s<  N,  Expr  >* )
-            {
-                if constexpr ( N == 0 )
-                {
-                    return Expr{};
-                }
-                else
-                {
-                    return  s_expr< static_cast< lt::text<>::literal<N> const&>(program_literal) >{};
-                }
-            }
-*/
             template<  literal_or_s program_literal  >
             requires
             requires()

@@ -316,7 +316,7 @@ TEST_CASE("arithmetics")
 
 
     using expr_2  =  lt::eval< "( ( eq 3) true )" >;
-    using Expr_2  =  lt::s_expr<"false">;
+    using Expr_2  =  lt::value<false>;
 
     lt::selftest::check_expression_equality<  expr_2,  Expr_2  >();
 
@@ -437,6 +437,102 @@ TEST_CASE("Stein's gcd")
 }
 
 
+
+template<  typename T  >
+using add_type =  typename T::type;
+
+
+
+struct x1
+{
+    using type = double;
+};
+
+
+
+struct x2
+{
+   // no type
+};
+
+
+
+TEST_CASE("evaluation_failure")
+{
+    using expr_1 = lt::eval<"( evaluation_failure ( @'add_type @'x)  )"
+                           ,  lt::map{  lt::assign<"x", x1 >
+                                     ,  lt::assign<"add_type",  lt::combinator<1, add_type> >
+                                     }
+                           >;
+
+    using Expr_1 = lt::value<false>;
+
+
+    lt::selftest::check_expression_equality< expr_1,  Expr_1>("Expr 1:");
+
+
+
+    using expr_2 = lt::eval<"( evaluation_failure ( @'add_type @'x)  )"
+                           ,  lt::map{  lt::assign<"x", x2 >
+                                     ,  lt::assign<"add_type",  lt::combinator<1, add_type> >
+                                     }
+                           >;
+
+    using Expr_2 = lt::value<true>;
+
+
+    lt::selftest::check_expression_equality< expr_2,  Expr_2 >("Expr 2:");
+
+}
+
+
+
+TEST_CASE("if_possible")
+{
+    using expr_1 = lt::eval<"( if_possible ( @'add_type @'x)  @'x )"
+                           ,  lt::map{  lt::assign<"x", x1 >
+                                     ,  lt::assign<"add_type",  lt::combinator<1, add_type> >
+                                     }
+                           >;
+
+    using Expr_1 = typename x1::type;
+
+
+    lt::selftest::check_expression_equality< expr_1,  Expr_1>("Expr 1:");
+
+
+
+    using expr_2 = lt::eval<"( if_possible ( @'add_type @'x)  @'x )"
+                           ,  lt::map{  lt::assign<"x", x2 >
+                                     ,  lt::assign<"add_type",  lt::combinator<1, add_type> >
+                                     }
+                           >;
+
+    using Expr_2 = x2;
+
+
+    lt::selftest::check_expression_equality< expr_2,  Expr_2>("Expr 2:");
+
+}
+
+
+
+TEST_CASE("show_error")
+{
+
+    using expr_1 = lt::eval<"(show_error ((first abc) 2)  )">;
+    lt::selftest::print_type<expr_1>("(show_error ((first abc) 2)   :");
+
+
+    using expr_2 = lt::eval<"(show_error (def f [x](abc x) 3 ))">;
+    lt::selftest::print_type<expr_2>("(show_error (def f [x](abc x) 3 ))   :");
+
+
+}
+
+
+
+
 // needs fixing:
 TEST_CASE("dummy")
 {
@@ -492,11 +588,12 @@ R"(
               ,  lt::map{ lt::assign<"xyz", int* > }
               >;
 
-//    using lt::operator""_s_expr;
 
-//    auto z = "abc"_s_expr;
-
+    using expr_9 = lt::eval<"([x](quote x)'7)">;
+    lt::selftest::print_type<expr_9>("expr9: ");
 }
+
+
 
 
 /*
