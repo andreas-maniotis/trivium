@@ -11,13 +11,12 @@
 
 
 #include "text.hpp"
-#include "symbolic_expressions.hpp"
-
+#include "s_expr.hpp"
 
 
 namespace lt
 {
-    struct ts
+    struct ts_rep  // tsr = type system representation
     {
     private:
 
@@ -517,11 +516,21 @@ TRIVIUM_F_NE_CONSTRUCT(const volatile&&,  value_type<"const_volatile&&"_text> )
     public:
 
         template<  typename CppType  >
-        using symbolic  =  typename deconstruct< CppType >::type;
+        using cpp_to_lisp  =  typename deconstruct< CppType >::type;
 
 
 
         template<  typename Symbolic_Type  >
-        using cpp  =  typename cpp_type_from_symbolic_<  Symbolic_Type  >::type;
+        using lisp_to_cpp  =  typename cpp_type_from_symbolic_<  Symbolic_Type  >::type;
+
+
+
+        template<  typename CppType  >
+        using sizeof_ = integer<sizeof(CppType)>;
+
+
+
+        template<  typename CppType  >
+        using alignof_ = integer<alignof(CppType)>;
     };
 }

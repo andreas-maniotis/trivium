@@ -21,20 +21,11 @@ namespace lt
 
 // values:
 
-    template<  auto x,  typename T = decltype(x)  >
+    template<  auto const x >
     struct v
     {
-        using type = T;
+        using type = decltype(x);
     };
-
-
-
-    template<  auto x,  typename T  >
-    struct v<  x,  T const  >
-    {
-        using type = T;
-    };
-
 
 
     template< auto const x  >
@@ -49,7 +40,7 @@ namespace lt
 
     // value_type removes const qualifiers:
     // value_type<x> is T for an object of type "T const"
-    template<  auto x  >
+    template<  auto const x  >
     using value_type = typename value<x>::type;
 
 
@@ -72,9 +63,22 @@ namespace lt
 
 // marker for lists with n elements:
 
-    template< int n >
+    template< unsigned n >
+    requires
+    (
+        n > 0
+    )
     struct list{};
 
+
+    template<  unsigned n
+            ,  typename... xs  >
+    struct s<  list<n>,  xs...  >
+    {
+        static_assert(  n == sizeof...(xs)
+                     ,  "An expression of the form  's<  list<n>,  xs... >'  "
+                        "must satisfy n == sizeof...(xs)!"  );
+    };
 
 
 //  literal_or_s
@@ -228,6 +232,12 @@ namespace lt
 
 
 
+    template< lt::text<>::literal expr  >
+    constexpr s_expr<expr> operator""_s_expr()  noexcept
+    {
+        return {};
+    }
+
 
 // PART I:  Symbolic Components
 
@@ -251,14 +261,16 @@ namespace lt
 // combinator:
 // -----------------------------------------------------------------------------
 
-    template<  unsigned n,  template< typename... >  class  >
-    requires( n != 0 )
+    template<  unsigned n,  template< typename... >  class,  typename...  >
     struct co {};
 
 
 
-    template<  unsigned n,  template< typename... > class F  >
-    using combinator  =  co< n, F >;
+    template<  unsigned                       n
+            ,  template< typename... > class  F
+            ,  typename...                    Prefix
+            >
+    using combinator  =  co<  n,  F,  Prefix...  >;
 
 
 
@@ -267,26 +279,16 @@ namespace lt
 // -----------------------------------------------------------------------------
 
 
-
-    template<  lt::text<>::literal s,  typename  T  >
-    inline constexpr auto assign  =
-    []
+    template<  typename K,  typename V  >
+    struct pair
     {
-        constexpr struct
-        {
-            using  key    =  decltype(operator""_text<s>());
-            using  value  =  T;
+        using key    =  K;
+        using value  =  V;
+    };
 
-            static_assert(  text_type<key> );
 
-            // make arbitrary use of typename value to suppress compiler warnings.
-            static_assert(  type_hull<value>{} == type_hull<T>{} );
-
-        } x;
-
-        return x;
-    }
-    ();
+    template<  lt::text<>::literal symbol,  typename T  >
+    inline constexpr auto let = pair<  decltype(operator""_text<symbol>()),  T  >{};
 
 
 
@@ -348,14 +350,6 @@ namespace lt
         template<  typename X  >
         struct opposite_expr
         :   with_result<  X  >
-        { };
-
-
-
-        template< int Zero >
-        requires( Zero == 0 )
-        struct opposite_expr<  s< list<Zero>  >  >
-        :   with_result<  s<>  >
         { };
 
 
@@ -580,7 +574,6 @@ struct lt::s<>::parser
                 return token{ pos_,  pos_ };
 
             case '\'':
-            case '@':
             case '(':
             case ')':
             case '[':
@@ -653,9 +646,11 @@ struct lt::s<>::parser
 
 
 
-// sublexer for numbers
+// sublexer for numbers and booleans
 //
 // Grammar:
+
+        // bool := true | false
 
         // num := hex_num | dec_num | oct_num | bin_num
         // hex_num :=  sign 0[x|X]   hex_suffix
@@ -754,6 +749,23 @@ struct lt::s<>::parser
 
 
 //  The sublexer:
+
+
+        template<  char... nothing  >  // keep gcc content
+        requires( sizeof...(nothing) == 0 )
+        struct sublexer_< text<'t','r','u','e',  nothing...> >
+        :   type_hull<  value<true>  >
+        { };
+
+
+
+        template<  char... nothing  >  // keep gcc content
+        requires( sizeof...(nothing) == 0 )
+        struct sublexer_< text<'f','a','l','s','e',  nothing... > >
+        :   type_hull< value<false> >
+        { };
+
+
 
         template<  char digit,  char...  digits  >
         struct sublexer_<  text< '+', digit, digits...  >  >
@@ -906,43 +918,6 @@ struct lt::s<>::parser
     { };
 
 
-// shortened navigator call:  @expr shall be interpreted as (` expr)
-
-    template<  typename     X
-            ,  typename...  Xs
-            >
-    struct parser_<  stack<>,  input<  token<'@'>,  X,  Xs...  >  >
-    :   type_hull<   s<  token<'`'>
-                      ,  typename parser_<  stack<>
-                                         ,  input <X,  Xs... >
-                                         >::type
-                           >
-                 >
-    ,   with_remaining_input< typename parser_<  stack<>,  input< X,  Xs... >  >::remaining_input  >
-    { };
-
-
-
-    template<  typename     Y
-            ,  typename...  Ys
-            ,  typename     X
-            ,  typename...  Xs
-            >
-    struct parser_<  stack<  Y
-                          ,  Ys...
-                          >
-                  ,  input<  token<'@'>,  X,  Xs...  >
-                  >
-    :   parser_<  stack<  Y
-                       ,  Ys...
-                       ,  typename parser_<  stack<>
-                                          ,  input<  token<'@'>,  X,  Xs...  >
-                                          >::type
-                       >
-               ,  typename parser_<  stack<>,  input<  token<'@'>,  X,  Xs...  >  >::remaining_input
-               >
-    { };
-
 
 
 //  parser begin with an opening bracket, ie '(',  '[' or '{':
@@ -1034,19 +1009,37 @@ struct lt::s<>::parser
 
 
     template<  typename...  Xs
+            ,  typename     Y
             ,  typename...  Ys
             >
-    struct parser_<  stack<  token<'('>,  token<'l','i','s','t'>,  Ys...  >
+    struct parser_<  stack<  token<'('>,  token<'l','i','s','t'>,  Y,  Ys...  >
                   ,  input<  token<')'>,  Xs...  >
                   >
     :  parser_<  stack<>
-              ,  input<  s<  list< sizeof...(Ys) >
-                           ,  Ys...
+              ,  input<  s<  list< 1 + sizeof...(Ys) >
+                          ,  Y
+                          ,  Ys...
                            >
                       ,  Xs...
                       >
               >
     { };
+
+
+
+    template<  typename...  Xs
+            >
+    struct parser_<  stack<  token<'('>,  token<'l','i','s','t'>  >
+                  ,  input<  token<')'>,  Xs...  >
+                  >
+    :  parser_<  stack<>
+              ,  input<  s<>
+                      ,  Xs...
+                      >
+              >
+    { };
+
+
 
 
 

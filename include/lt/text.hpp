@@ -153,6 +153,7 @@ namespace lt
             const char content[N];
 
 
+        private:
 
             template<  auto... k,  template< auto... > class Sequence  >
             constexpr literal(  char const (&Text)[N],  Sequence<k...>  )
@@ -160,6 +161,7 @@ namespace lt
             { }
 
 
+        public:
 
             constexpr literal(  char const (&Text)[N]  )
             :  literal(  Text,  typename literal<0u>::template make_chain<N>{})

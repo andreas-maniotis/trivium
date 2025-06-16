@@ -15,8 +15,6 @@
 
 namespace lt
 {
-
-
     // the concept map_parameters< Xs... > is satisfied if and only if the following conditions hold:
     //
     // a)  The typename Xs::key  exists for all Xs...  .
@@ -81,13 +79,6 @@ namespace lt
 
 
 
-            static constexpr bool  contains_key_(  type_hull<Key>  )
-            {
-                return true;
-            }
-
-
-
             template<  typename... ignore_fallback >
             requires
             (
@@ -117,14 +108,7 @@ namespace lt
             :   type_hull<  Fallback  >
             { };
 
-
-
-            template<  typename Key  >
-            static constexpr bool contains_key_( type_hull<Key> )
-            {
-                return false;
-            }
-        };
+       };
 
 
 
@@ -171,10 +155,6 @@ namespace lt
             using entry< KV >::get_entry_...;
 
 
-            using pseudo_entry::contains_key_;
-            using entry< KV >::contains_key_...;
-
-
             template<  typename >
             struct add_entry_;
         };
@@ -210,7 +190,7 @@ namespace lt
 
         template<  typename Entry,  typename... More_Entries  >
         struct add_or_replace_t_<  Entry,  More_Entries...  >
-        :   type_hull<  typename map<Entry>::template add_or_replace_types<  More_Entries...  >  >
+        :   type_hull<  typename map<Entry>::template add_or_replace<  More_Entries...  >  >
         { };
 
 
@@ -225,35 +205,17 @@ namespace lt
 
 
         template<  typename... Entries  >
-        using add_or_replace_types =  typename add_or_replace_t_< Entries... >::type;
+        using add_or_replace =  typename add_or_replace_t_< Entries... >::type;
 
 
 
         template<  typename... Entries  >
-        using add_types =  map<  Entries...  >;
+        using add =  map<  Entries...  >;
 
 
 
-        template<  typename... Entries  >
-        static constexpr auto add_or_replace(  Entries const...  )  noexcept
-        ->  add_or_replace_types<  Entries...  >
-        {
-            return {};
-        }
-
-
-
-        template<  typename... Entries  >
-        static constexpr auto add(  Entries const... ) noexcept
-        ->  map< Entries... >
-        {
-            return {};
-        }
-
-
-
-        template<  typename K  >
-        static constexpr bool contains_key()  noexcept { return false; }
+        template<  template< typename... > class F  >
+        using apply = F<>;
 
 
 
@@ -297,7 +259,7 @@ namespace lt
                 map<  typename map<>::
                        template update_entry<  KV_Pair,  New_KV_Pair  >::type...
                     >::
-                template add_or_replace_types<  More...  >
+                template add_or_replace<  More...  >
             >
         { };
 
@@ -313,7 +275,7 @@ namespace lt
                   type_hull<  typename New_KV_Pair::key  >{}  )  && ...  )
         )
         struct add_or_replace_t_<  New_KV_Pair,  More...  >
-        :   type_hull<  typename map<  KV_Pair...,  New_KV_Pair  >::template add_or_replace_types< More...  >  >
+        :   type_hull<  typename map<  KV_Pair...,  New_KV_Pair  >::template add_or_replace< More...  >  >
         { };
 
 
@@ -343,39 +305,13 @@ namespace lt
 
 
 
-        template<  typename K  >
-        static constexpr bool  contains_key()  noexcept
-        {
-            return map_::contains_key_( type_hull<K>{} );
-        }
-
-
-
         template<  typename... KV  >
-        using add_or_replace_types  =  typename add_or_replace_t_< KV... >::type;
+        using add_or_replace  =  typename add_or_replace_t_< KV... >::type;
 
 
 
         template<  typename... More_KV_Pairs  >
-        using add_types = map< KV_Pair...,  More_KV_Pairs... >;
-
-
-
-        template<  typename... KV  >
-        static constexpr auto add_or_replace( KV...  )  noexcept
-        -> add_or_replace_types<  KV...  >
-        {
-            return {};
-        }
-
-
-
-        template<  typename... KV  >
-        static constexpr auto add( KV const...  )  noexcept
-        -> map< KV_Pair...,  KV...  >
-        {
-            return {};
-        }
+        using add = map< KV_Pair...,  More_KV_Pairs... >;
 
 
 
